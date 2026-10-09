@@ -136,9 +136,13 @@ model ProductionJob {
   name           String
   status         ProductionStatus @default(QUEUED)
   plannedWeightG Int
+  plannedDurationMinutes Int?
   actualWeightG  Int?
+  actualDurationSeconds Int @default(0)
   startedAt      DateTime?
+  activeSince    DateTime?
   completedAt    DateTime?
+  archivedAt     DateTime?
   notes          String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt

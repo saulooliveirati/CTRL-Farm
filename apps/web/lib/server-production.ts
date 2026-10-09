@@ -7,9 +7,14 @@ export type ProductionRecord = {
   name: string;
   status: "QUEUED" | "PRINTING" | "PAUSED" | "COMPLETED" | "FAILED" | "CANCELLED";
   plannedWeightG: number;
+  plannedDurationMinutes: number | null;
   actualWeightG: number | null;
+  actualDurationSeconds: number;
   startedAt: string | null;
+  activeSince: string | null;
+  completedAt: string | null;
   orderId: string | null;
+  filamentId: string;
   order: { id: string; description: string } | null;
   createdAt: string;
   printer: { id: string; name: string };

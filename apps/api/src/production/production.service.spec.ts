@@ -52,4 +52,18 @@ describe("ProductionService", () => {
     await expect(service.remove("company-1", "job-1")).rejects.toBeInstanceOf(ConflictException);
     expect(remove).not.toHaveBeenCalled();
   });
+
+  it("corrige consumo concluído e devolve a diferença ao estoque", async () => {
+    const job = { id: "job-1", companyId: "company-1", filamentId: "filament-1", status: "COMPLETED", actualWeightG: 50 };
+    const findFirst = vi.fn().mockResolvedValue(job);
+    const filamentUpdate = vi.fn();
+    const productionUpdate = vi.fn().mockResolvedValue({ ...job, actualWeightG: 42 });
+    const tx = { productionJob: { findFirst, update: productionUpdate }, filament: { update: filamentUpdate } };
+    const service = new ProductionService({ $transaction: (callback: (client: typeof tx) => unknown) => callback(tx) } as never);
+
+    await service.update("company-1", "job-1", { actualWeightG: 42 });
+
+    expect(filamentUpdate).toHaveBeenCalledWith({ where: { id: "filament-1" }, data: { currentWeightG: { increment: 8 } } });
+    expect(productionUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: { actualWeightG: 42 } }));
+  });
 });

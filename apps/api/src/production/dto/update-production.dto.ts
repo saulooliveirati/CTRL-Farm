@@ -1,12 +1,13 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiPropertyOptional } from "@nestjs/swagger";
 import { ProductionStatus } from "@prisma/client";
 import { IsEnum, IsInt, IsOptional, Min } from "class-validator";
 import { Type } from "class-transformer";
 
 export class UpdateProductionDto {
-  @ApiProperty({ enum: ProductionStatus })
+  @ApiPropertyOptional({ enum: ProductionStatus })
+  @IsOptional()
   @IsEnum(ProductionStatus)
-  status!: ProductionStatus;
+  status?: ProductionStatus;
 
   @ApiPropertyOptional({ description: "Consumo real em gramas ao concluir" })
   @IsOptional()

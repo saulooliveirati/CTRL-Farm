@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FilamentRecord } from "@/lib/server-filaments";
 import type { PrinterRecord } from "@/lib/server-printers";
 import type { ProductionRecord } from "@/lib/server-production";
@@ -8,6 +8,11 @@ import type { OrderRecord } from "@/lib/server-orders";
 
 type Status = ProductionRecord["status"];
 const labels: Record<Status, string> = { QUEUED: "Na fila", PRINTING: "Imprimindo", PAUSED: "Pausada", COMPLETED: "Concluída", FAILED: "Falhou", CANCELLED: "Cancelada" };
+const formatDuration = (seconds: number) => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return hours > 0 ? `${hours}h ${minutes}min` : `${minutes}min`;
+};
 
 export function ProductionManager({ initialPrinters, initialFilaments, initialJobs, initialOrders, initialOrderId, initialError }: {
   initialPrinters: PrinterRecord[]; initialFilaments: FilamentRecord[]; initialJobs: ProductionRecord[]; initialOrders: OrderRecord[]; initialOrderId: string; initialError: string;
@@ -22,12 +27,19 @@ export function ProductionManager({ initialPrinters, initialFilaments, initialJo
   const [printerId, setPrinterId] = useState(initialPrinters[0]?.id ?? "");
   const [filamentId, setFilamentId] = useState(initialFilaments[0]?.id ?? "");
   const [weight, setWeight] = useState("50");
+  const [plannedDurationMinutes, setPlannedDurationMinutes] = useState("");
   const [orderId, setOrderId] = useState(initialOrderId);
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   async function createJob(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSaving(true); setError("");
     try {
-      const response = await fetch("/api/production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, printerId, filamentId, plannedWeightG: Number(weight), ...(orderId && { orderId }) }) });
+      const response = await fetch("/api/production", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, printerId, filamentId, plannedWeightG: Number(weight), ...(plannedDurationMinutes && { plannedDurationMinutes: Number(plannedDurationMinutes) }), ...(orderId && { orderId }) }) });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message ?? "Não foi possível criar a ordem.");
       setJobs((items) => [result.data, ...items]); setName("");
@@ -57,11 +69,26 @@ export function ProductionManager({ initialPrinters, initialFilaments, initialJo
   }
 
   async function deleteJob(job: ProductionRecord) {
-    if (!window.confirm(`Excluir a ordem de produção “${job.name}”?`)) return;
+    const message = job.status === "COMPLETED" ? `Retirar “${job.name}” da lista? O histórico e o consumo serão mantidos.` : `Excluir a ordem de produção “${job.name}”?`;
+    if (!window.confirm(message)) return;
     const response = await fetch(`/api/production/${job.id}`, { method: "DELETE" });
     const result = await response.json();
     if (!response.ok) { setError(result.message ?? "Não foi possível excluir a ordem."); return; }
     setJobs((items) => items.filter((item) => item.id !== job.id));
+    setError("");
+  }
+
+  async function adjustConsumption(job: ProductionRecord) {
+    const answer = window.prompt("Consumo real corrigido de filamento (gramas):", String(job.actualWeightG ?? job.plannedWeightG));
+    if (answer === null) return;
+    const actualWeightG = Number(answer);
+    if (!Number.isInteger(actualWeightG) || actualWeightG < 0) { setError("Informe um consumo em gramas válido."); return; }
+    const response = await fetch(`/api/production/${job.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actualWeightG }) });
+    const result = await response.json();
+    if (!response.ok) { setError(result.message ?? "Não foi possível corrigir o consumo."); return; }
+    const difference = (job.actualWeightG ?? 0) - actualWeightG;
+    setFilaments((items) => items.map((item) => item.id === job.filamentId ? { ...item, currentWeightG: item.currentWeightG + difference } : item));
+    setJobs((items) => items.map((item) => item.id === job.id ? result.data : item));
     setError("");
   }
 
@@ -78,6 +105,7 @@ export function ProductionManager({ initialPrinters, initialFilaments, initialJo
           <label className="grid gap-1 text-sm">Impressora *<select value={printerId} onChange={(event) => setPrinterId(event.target.value)} className="rounded-md border bg-background px-3 py-2">{printers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
           <label className="grid gap-1 text-sm">Bobina *<select value={filamentId} onChange={(event) => setFilamentId(event.target.value)} className="rounded-md border bg-background px-3 py-2">{filaments.map((item) => <option key={item.id} value={item.id}>{item.material} · {item.brand} · {item.color} ({item.currentWeightG} g)</option>)}</select></label>
           <label className="grid gap-1 text-sm">Consumo estimado (g) *<input required type="number" min="1" step="1" max={availableFilament?.currentWeightG} value={weight} onChange={(event) => setWeight(event.target.value)} className="rounded-md border bg-background px-3 py-2" /></label>
+          <label className="grid gap-1 text-sm">Tempo estimado (min)<input type="number" min="1" max="43200" step="1" value={plannedDurationMinutes} onChange={(event) => setPlannedDurationMinutes(event.target.value)} className="rounded-md border bg-background px-3 py-2" placeholder="Ex.: 240" /></label>
           <label className="grid gap-1 text-sm">Pedido associado<select value={orderId} onChange={(event) => setOrderId(event.target.value)} className="rounded-md border bg-background px-3 py-2"><option value="">Sem pedido</option>{orders.filter((item) => item.status === "DRAFT" && !item.productionJob).map((item) => <option key={item.id} value={item.id}>{item.description} · {item.customer.name}</option>)}</select></label>
           <div className="md:col-span-2 xl:col-span-4"><button disabled={saving} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60">{saving ? "Salvando…" : "Adicionar à fila"}</button></div>
         </form>}
@@ -87,7 +115,10 @@ export function ProductionManager({ initialPrinters, initialFilaments, initialJo
 
       <section className="rounded-xl border bg-background shadow-sm">
         <div className="flex items-center justify-between border-b p-5"><h3 className="font-semibold">Ordens de produção</h3><span className="text-sm text-muted-foreground">{jobs.length} ordens</span></div>
-      {jobs.length === 0 ? <div className="p-10 text-center text-sm text-muted-foreground">Nenhuma ordem cadastrada.</div> : <div className="overflow-x-auto"><table className="w-full min-w-[950px] text-left text-sm"><thead className="bg-muted/50 text-muted-foreground"><tr><th className="px-5 py-3 font-medium">Ordem</th><th className="px-5 py-3 font-medium">Pedido</th><th className="px-5 py-3 font-medium">Impressora</th><th className="px-5 py-3 font-medium">Material</th><th className="px-5 py-3 font-medium">Estimativa</th><th className="px-5 py-3 font-medium">Status</th><th className="px-5 py-3 font-medium">Ações</th></tr></thead><tbody className="divide-y">{jobs.map((job) => <tr key={job.id}><td className="px-5 py-4 font-medium">{job.name}</td><td className="px-5 py-4">{job.order?.description ?? "—"}</td><td className="px-5 py-4">{job.printer.name}</td><td className="px-5 py-4">{job.filament.material} · {job.filament.brand} · {job.filament.color}</td><td className="px-5 py-4">{job.plannedWeightG} g{job.actualWeightG !== null ? ` · real ${job.actualWeightG} g` : ""}</td><td className="px-5 py-4">{labels[job.status]}</td><td className="space-x-3 px-5 py-4">{job.status === "QUEUED" && <><button onClick={() => void changeStatus(job, "PRINTING")} className="text-primary hover:underline">Iniciar</button><button onClick={() => void changeStatus(job, "CANCELLED")} className="text-muted-foreground hover:underline">Cancelar</button></>}{job.status === "PRINTING" && <><button onClick={() => void changeStatus(job, "PAUSED")} className="text-primary hover:underline">Pausar</button><button onClick={() => void changeStatus(job, "CANCELLED")} className="text-destructive hover:underline">Cancelar</button><button onClick={() => void changeStatus(job, "COMPLETED")} className="text-primary hover:underline">Concluir</button><button onClick={() => void changeStatus(job, "FAILED")} className="text-destructive hover:underline">Falhou</button></>}{job.status === "PAUSED" && <><button onClick={() => void changeStatus(job, "PRINTING")} className="text-primary hover:underline">Retomar</button><button onClick={() => void changeStatus(job, "CANCELLED")} className="text-muted-foreground hover:underline">Cancelar</button><button onClick={() => void changeStatus(job, "COMPLETED")} className="text-primary hover:underline">Concluir</button></>}{job.status === "FAILED" && <button onClick={() => void changeStatus(job, "PRINTING")} className="text-primary hover:underline">Tentar novamente</button>}{(job.status === "QUEUED" || job.status === "CANCELLED") && !job.startedAt && job.actualWeightG === null && <button onClick={() => void deleteJob(job)} className="text-destructive hover:underline">Excluir</button>}</td></tr>)}</tbody></table></div>}
+      {jobs.length === 0 ? <div className="p-10 text-center text-sm text-muted-foreground">Nenhuma ordem cadastrada.</div> : <div className="overflow-x-auto"><table className="w-full min-w-[1150px] text-left text-sm"><thead className="bg-muted/50 text-muted-foreground"><tr><th className="px-5 py-3 font-medium">Ordem / Pedido</th><th className="px-5 py-3 font-medium">Equipamento</th><th className="px-5 py-3 font-medium">Material / consumo</th><th className="px-5 py-3 font-medium">Tempo previsto / ativo</th><th className="px-5 py-3 font-medium">Início / conclusão</th><th className="px-5 py-3 font-medium">Status</th><th className="px-5 py-3 font-medium">Ações</th></tr></thead><tbody className="divide-y">{jobs.map((job) => {
+        const elapsedSeconds = job.actualDurationSeconds + (job.activeSince ? Math.max(0, Math.floor((now - new Date(job.activeSince).getTime()) / 1000)) : 0);
+        return <tr key={job.id}><td className="px-5 py-4 font-medium">{job.name}<div className="text-xs text-muted-foreground">{job.order?.description ?? "Sem pedido"}</div></td><td className="px-5 py-4">{job.printer.name}</td><td className="px-5 py-4">{job.filament.material} · {job.filament.brand} · {job.filament.color}<div className="text-xs text-muted-foreground">Estimado {job.plannedWeightG} g{job.actualWeightG !== null ? ` · Real ${job.actualWeightG} g` : ""}</div></td><td className="px-5 py-4">Previsto {job.plannedDurationMinutes ? formatDuration(job.plannedDurationMinutes * 60) : "—"}<div className="text-xs text-muted-foreground">Ativo {formatDuration(elapsedSeconds)}</div></td><td className="px-5 py-4 text-xs">{job.startedAt ? new Date(job.startedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Ainda não iniciada"}<div className="text-muted-foreground">{job.completedAt ? new Date(job.completedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Em andamento"}</div></td><td className="px-5 py-4">{labels[job.status]}</td><td className="space-x-3 px-5 py-4">{job.status === "QUEUED" && <><button onClick={() => void changeStatus(job, "PRINTING")} className="text-primary hover:underline">Iniciar</button><button onClick={() => void changeStatus(job, "CANCELLED")} className="text-muted-foreground hover:underline">Cancelar</button></>}{job.status === "PRINTING" && <><button onClick={() => void changeStatus(job, "PAUSED")} className="text-primary hover:underline">Pausar</button><button onClick={() => void changeStatus(job, "CANCELLED")} className="text-destructive hover:underline">Cancelar</button><button onClick={() => void changeStatus(job, "COMPLETED")} className="text-primary hover:underline">Concluir</button><button onClick={() => void changeStatus(job, "FAILED")} className="text-destructive hover:underline">Falhou</button></>}{job.status === "PAUSED" && <><button onClick={() => void changeStatus(job, "PRINTING")} className="text-primary hover:underline">Retomar</button><button onClick={() => void changeStatus(job, "CANCELLED")} className="text-muted-foreground hover:underline">Cancelar</button><button onClick={() => void changeStatus(job, "COMPLETED")} className="text-primary hover:underline">Concluir</button></>}{job.status === "FAILED" && <button onClick={() => void changeStatus(job, "PRINTING")} className="text-primary hover:underline">Tentar novamente</button>}{job.status === "COMPLETED" && <><button onClick={() => void adjustConsumption(job)} className="text-primary hover:underline">Corrigir consumo</button><button onClick={() => void deleteJob(job)} className="text-destructive hover:underline">Retirar da lista</button></>}{(job.status === "QUEUED" || job.status === "CANCELLED") && !job.startedAt && job.actualWeightG === null && <button onClick={() => void deleteJob(job)} className="text-destructive hover:underline">Excluir</button>}</td></tr>;
+      })}</tbody></table></div>}
       </section>
     </div>
   );

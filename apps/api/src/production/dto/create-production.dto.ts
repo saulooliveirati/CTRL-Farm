@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsOptional, IsString, IsUUID, MaxLength, MinLength, IsInt, Min } from "class-validator";
+import { IsOptional, IsString, IsUUID, MaxLength, MinLength, IsInt, Min, Max } from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateProductionDto {
@@ -27,6 +27,14 @@ export class CreateProductionDto {
   @IsInt()
   @Min(1)
   plannedWeightG!: number;
+
+  @ApiPropertyOptional({ example: 240, description: "Duração prevista em minutos" })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(43200)
+  plannedDurationMinutes?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

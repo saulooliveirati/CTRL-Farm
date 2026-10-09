@@ -7,7 +7,7 @@ O schema é `prisma/schema.prisma`; toda alteração deve vir acompanhada de uma
 - `Company` é o tenant raiz. Usuários, impressoras, bobinas, clientes, pedidos e produções pertencem a uma empresa.
 - `Customer` possui zero ou mais `CustomerOrder`; documento, quando informado, é único dentro da empresa.
 - `CustomerOrder` registra descrição, quantidade, preço unitário, prazo e status. Tem no máximo uma `ProductionJob` vinculada.
-- `ProductionJob` aponta para uma impressora, uma bobina e opcionalmente um pedido. Registra peso planejado e peso real.
+- `ProductionJob` aponta para uma impressora, uma bobina e opcionalmente um pedido. Registra peso planejado/real, tempo previsto, início, conclusão e duração ativa acumulada (desconta pausas). Produções concluídas podem ser arquivadas sem perder o histórico.
 - `Filament.currentWeightG` é atualizado atomicamente ao concluir uma produção.
 - Uma impressora ou bobina referenciada por histórico de produção não pode ser apagada (`Restrict`). Clientes com pedidos e pedidos com produção vinculada também são preservados. A API informa o motivo em vez de expor erro interno.
 - Uma produção só pode ser excluída se estiver na fila ou cancelada e nunca tiver iniciado nem registrado consumo; produções iniciadas permanecem como histórico, mesmo canceladas ou com falha.
@@ -18,6 +18,6 @@ O schema é `prisma/schema.prisma`; toda alteração deve vir acompanhada de uma
 
 ## Ciclo da produção
 
-`QUEUED` → `PRINTING` ↔ `PAUSED` → `COMPLETED` / `FAILED` / `CANCELLED`. Produções na fila, imprimindo ou pausadas podem ser canceladas. Uma produção com falha pode ser tentada novamente. A baixa do peso real e a atualização do status são feitas na mesma transação para não deixar estoque e histórico divergentes.
+`QUEUED` → `PRINTING` ↔ `PAUSED` → `COMPLETED` / `FAILED` / `CANCELLED`. Produções na fila, imprimindo ou pausadas podem ser canceladas. Uma produção com falha pode ser tentada novamente. A baixa do peso real e a atualização do status são feitas na mesma transação. Corrigir o consumo de uma produção concluída acerta apenas a diferença no estoque, também dentro de uma transação.
 
 Mais detalhes funcionais: [visão geral](01-visao-geral.md). A validação de escopo por empresa é obrigatória em todo serviço.

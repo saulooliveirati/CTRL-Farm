@@ -2,6 +2,15 @@
 
 As mudanças relevantes são registradas por entrega. Datas usam `YYYY-MM-DD`.
 
+## 2026-10-09 — Tempo e revisão da produção
+
+### Adicionado
+
+- Duração prevista informada ao criar produção e acompanhamento do tempo ativo em tempo real, com pausas descontadas.
+- Registro de início e conclusão junto ao equipamento selecionado.
+- Correção posterior do consumo concluído, ajustando somente a diferença no saldo da bobina.
+- Arquivamento de produção concluída com problema, retirando-a da lista operacional sem apagar seu histórico.
+
 ## 2026-10-09 — Exclusões seguras e cancelamento da produção
 
 ### Adicionado

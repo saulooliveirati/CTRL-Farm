@@ -11,7 +11,7 @@ export class ProductionService {
 
   findAll(companyId: string) {
     return this.prisma.productionJob.findMany({
-      where: { companyId },
+      where: { companyId, archivedAt: null },
       include: {
         printer: { select: { id: true, name: true } },
         filament: { select: { id: true, material: true, brand: true, color: true } },
@@ -39,6 +39,7 @@ export class ProductionService {
         orderId: dto.orderId ?? null,
         name: dto.name.trim(),
         plannedWeightG: dto.plannedWeightG,
+        plannedDurationMinutes: dto.plannedDurationMinutes ?? null,
         notes: dto.notes?.trim() || null,
       },
       include: {
@@ -53,11 +54,30 @@ export class ProductionService {
     return this.prisma.$transaction(async (tx) => {
       const job = await tx.productionJob.findFirst({ where: { id, companyId } });
       if (!job) throw new NotFoundException("Ordem de produção não encontrada.");
+      if (job.status === ProductionStatus.COMPLETED && dto.status === undefined && dto.actualWeightG !== undefined) {
+        const previousWeightG = job.actualWeightG ?? 0;
+        const difference = dto.actualWeightG - previousWeightG;
+        if (difference > 0) {
+          const deduction = await tx.filament.updateMany({
+            where: { id: job.filamentId, companyId, currentWeightG: { gte: difference } },
+            data: { currentWeightG: { decrement: difference } },
+          });
+          if (deduction.count === 0) throw new BadRequestException("Estoque insuficiente para corrigir o consumo desta produção.");
+        } else if (difference < 0) {
+          await tx.filament.update({ where: { id: job.filamentId }, data: { currentWeightG: { increment: Math.abs(difference) } } });
+        }
+        return tx.productionJob.update({ where: { id }, data: { actualWeightG: dto.actualWeightG }, include: this.productionRelations() });
+      }
+
+      if (dto.status === undefined) throw new BadRequestException("Informe um novo status ou o consumo corrigido de uma produção concluída.");
       if (!this.isAllowedTransition(job.status, dto.status)) {
         throw new ConflictException(`Não é possível alterar de ${job.status} para ${dto.status}.`);
       }
 
       let actualWeightG: number | undefined;
+      const now = new Date();
+      const activeSegmentSeconds = job.activeSince ? Math.max(0, Math.floor((now.getTime() - job.activeSince.getTime()) / 1000)) : 0;
+      let actualDurationSeconds = job.actualDurationSeconds;
       if (dto.status === ProductionStatus.COMPLETED) {
         actualWeightG = dto.actualWeightG ?? job.plannedWeightG;
         const deduction = await tx.filament.updateMany({
@@ -65,6 +85,10 @@ export class ProductionService {
           data: { currentWeightG: { decrement: actualWeightG } },
         });
         if (deduction.count === 0) throw new BadRequestException("Estoque insuficiente para concluir esta produção.");
+      }
+
+      if (dto.status === ProductionStatus.PAUSED || dto.status === ProductionStatus.COMPLETED || dto.status === ProductionStatus.FAILED || dto.status === ProductionStatus.CANCELLED) {
+        actualDurationSeconds += activeSegmentSeconds;
       }
 
       if (dto.status === ProductionStatus.PRINTING) {
@@ -94,8 +118,9 @@ export class ProductionService {
         where: { id },
         data: {
           status: dto.status,
-          ...(dto.status === ProductionStatus.PRINTING && !job.startedAt && { startedAt: new Date() }),
-          ...(dto.status === ProductionStatus.COMPLETED && { completedAt: new Date(), actualWeightG }),
+          ...(dto.status === ProductionStatus.PRINTING && { activeSince: now, ...(!job.startedAt && { startedAt: now }) }),
+          ...((dto.status === ProductionStatus.PAUSED || dto.status === ProductionStatus.COMPLETED || dto.status === ProductionStatus.FAILED || dto.status === ProductionStatus.CANCELLED) && { activeSince: null, actualDurationSeconds }),
+          ...(dto.status === ProductionStatus.COMPLETED && { completedAt: now, actualWeightG }),
         },
         include: {
           printer: { select: { id: true, name: true } },
@@ -109,11 +134,23 @@ export class ProductionService {
   async remove(companyId: string, id: string) {
     const job = await this.prisma.productionJob.findFirst({ where: { id, companyId }, select: { id: true, status: true, startedAt: true, actualWeightG: true } });
     if (!job) throw new NotFoundException("Ordem de produção não encontrada.");
+    if (job.status === ProductionStatus.COMPLETED) {
+      await this.prisma.productionJob.update({ where: { id }, data: { archivedAt: new Date() } });
+      return { id, archived: true };
+    }
     if ((job.status !== ProductionStatus.QUEUED && job.status !== ProductionStatus.CANCELLED) || job.startedAt || job.actualWeightG !== null) {
       throw new ConflictException("Esta produção possui histórico operacional e não pode ser excluída.");
     }
     await this.prisma.productionJob.delete({ where: { id } });
     return { id };
+  }
+
+  private productionRelations() {
+    return {
+      printer: { select: { id: true, name: true } },
+      filament: { select: { id: true, material: true, brand: true, color: true } },
+      order: { select: { id: true, description: true } },
+    };
   }
 
   private isAllowedTransition(from: ProductionStatus, to: ProductionStatus) {
