@@ -12,6 +12,7 @@ describe("FilamentsService", () => {
 
     expect(create).toHaveBeenCalledWith({
       data: expect.objectContaining({ companyId: "company-1", currentWeightG: 1000, initialWeightG: 1000 }),
+      include: { supplier: { select: { id: true, name: true } } },
     });
   });
 

@@ -66,4 +66,30 @@ describe("ProductionService", () => {
     expect(filamentUpdate).toHaveBeenCalledWith({ where: { id: "filament-1" }, data: { currentWeightG: { increment: 8 } } });
     expect(productionUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: { actualWeightG: 42 } }));
   });
+
+  it("desconta pausas do tempo ativo e acumula o trecho atual", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-09T12:01:30.000Z"));
+    const job = {
+      id: "job-1", companyId: "company-1", printerId: "printer-1", status: "PRINTING",
+      startedAt: new Date("2026-10-09T12:00:00.000Z"), activeSince: new Date("2026-10-09T12:00:00.000Z"),
+      actualDurationSeconds: 70, orderId: null,
+    };
+    const productionUpdate = vi.fn().mockResolvedValue({ id: "job-1", status: "PAUSED" });
+    const tx = { productionJob: { findFirst: vi.fn().mockResolvedValue(job), update: productionUpdate }, printer: { update: vi.fn() } };
+    const service = new ProductionService({ $transaction: (callback: (client: typeof tx) => unknown) => callback(tx) } as never);
+    try {
+      await service.update("company-1", "job-1", { status: "PAUSED" });
+      expect(productionUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ activeSince: null, actualDurationSeconds: 160 }) }));
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("arquiva concluída sem apagar seus dados", async () => {
+    const update = vi.fn();
+    const service = new ProductionService({
+      productionJob: { findFirst: vi.fn().mockResolvedValue({ id: "job-1", status: "COMPLETED" }), update },
+    } as never);
+    await expect(service.remove("company-1", "job-1")).resolves.toMatchObject({ id: "job-1", archived: true });
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "job-1" }, data: expect.objectContaining({ archivedAt: expect.any(Date) }) }));
+  });
 });

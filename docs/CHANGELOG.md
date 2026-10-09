@@ -2,6 +2,14 @@
 
 As mudanças relevantes são registradas por entrega. Datas usam `YYYY-MM-DD`.
 
+## 2026-10-09 — Fornecedores e estoque geral
+
+### Adicionado
+
+- Cadastro e manutenção de fornecedores, com documento e meios de contato.
+- Vínculo opcional de fornecedor a impressoras/equipamentos e bobinas de filamento.
+- Estoque geral de equipamentos auxiliares, consumíveis, peças, ferramentas, embalagens e outros materiais, com saldo, unidade, custo e alerta de estoque mínimo.
+
 ## 2026-10-09 — Tempo e revisão da produção
 
 ### Adicionado

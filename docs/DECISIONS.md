@@ -17,3 +17,7 @@ Um pedido pode ter no máximo uma ordem de produção, que representa a produç�
 ## 4. Consumo de filamento
 
 O estoque só é debitado quando a ordem é concluída, usando o peso real informado. O débito e a mudança de status acontecem na mesma transação; tentativas com estoque insuficiente falham sem registrar conclusão.
+
+## 5. Fornecedores e estoque geral
+
+Fornecedores são registros da empresa e não podem ser removidos enquanto estiverem associados a equipamentos ou materiais. Filamentos mantêm saldo próprio em gramas, vinculado à produção; o estoque geral cobre equipamentos auxiliares, insumos, peças, ferramentas, embalagens e outros materiais, com unidade e limite mínimo.

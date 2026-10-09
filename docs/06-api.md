@@ -14,6 +14,8 @@ Base local: `http://localhost:3001`. Swagger: `/docs`. Respostas bem-sucedidas u
 - `GET /companies`
 - `GET|POST /printers`; `PATCH|DELETE /printers/:id`
 - `GET|POST /filaments`; `PATCH|DELETE /filaments/:id`
+- `GET|POST /suppliers`; `PATCH|DELETE /suppliers/:id` — fornecedor com vínculos não pode ser removido.
+- `GET|POST /inventory-materials`; `PATCH|DELETE /inventory-materials/:id` — estoque de equipamento auxiliar, insumo e material geral.
 - `GET|POST /production`; `PATCH|DELETE /production/:id` — `PATCH` altera status ou corrige consumo concluído; `DELETE` apaga itens não iniciados elegíveis ou arquiva uma produção concluída, preservando o histórico.
 - `GET|POST /customers`; `PATCH|DELETE /customers/:id`
 - `GET|POST /orders`; `PATCH /orders/:id/cancel`; `DELETE /orders/:id` — exclusão permitida quando não há produção vinculada.

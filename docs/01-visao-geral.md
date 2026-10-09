@@ -7,9 +7,11 @@ CTRL+Farm é um sistema web para organizar uma fazenda de impressão 3D, com dad
 - Cadastro de empresa e primeiro usuário administrador; login com sessão em cookie HttpOnly.
 - Impressoras: cadastro, identificação, localização e status operacional.
 - Filamentos: cadastro de bobinas, custo opcional e peso disponível.
+- Fornecedores: dados de contato e vínculo com impressoras, bobinas e materiais.
+- Materiais e equipamentos: estoque geral de insumos, equipamentos auxiliares, peças, ferramentas e embalagens com saldo mínimo e fornecedor.
 - Produção: ordens de trabalho com estados de fila, impressão, pausa, falha, cancelamento e conclusão.
 - Clientes e pedidos: registro de contato, quantidade, preço unitário e prazo.
-- Rastreio: pedido → produção → impressora e bobina → consumo real; a conclusão baixa o estoque dentro da mesma transação.
+- Rastreio: pedido → produção → impressora e bobina → consumo real; a conclusão baixa o estoque dentro da mesma transação. Tempo ativo é acompanhado e pausas são descontadas; consumo concluído pode ser corrigido e produção problemática arquivada.
 
 ## Limites atuais
 

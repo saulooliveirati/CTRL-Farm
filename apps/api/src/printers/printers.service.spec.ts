@@ -12,6 +12,7 @@ describe("PrintersService", () => {
 
     expect(findMany).toHaveBeenCalledWith({
       where: { companyId: "company-1" },
+      include: { supplier: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" },
     });
   });

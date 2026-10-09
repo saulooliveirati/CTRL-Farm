@@ -12,6 +12,8 @@ export type FilamentRecord = {
   price: string | null;
   lot: string | null;
   purchasedAt: string | null;
+  supplierId: string | null;
+  supplier: { id: string; name: string } | null;
 };
 
 export async function getFilamentsForPage(): Promise<{ filaments: FilamentRecord[]; error: string }> {

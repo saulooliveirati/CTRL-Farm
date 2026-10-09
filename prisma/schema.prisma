@@ -50,6 +50,15 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum InventoryCategory {
+  EQUIPMENT
+  CONSUMABLE
+  SPARE_PART
+  TOOL
+  PACKAGING
+  OTHER
+}
+
 model Company {
   id        String  @id @default(uuid())
   name      String
@@ -62,12 +71,14 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users          User[]
-  printers       Printer[]
-  filaments      Filament[]
-  productionJobs ProductionJob[]
-  customers      Customer[]
-  orders         CustomerOrder[]
+  users              User[]
+  printers           Printer[]
+  filaments          Filament[]
+  productionJobs     ProductionJob[]
+  customers          Customer[]
+  orders             CustomerOrder[]
+  suppliers          Supplier[]
+  inventoryMaterials InventoryMaterial[]
 }
 
 model User {
@@ -87,6 +98,28 @@ model User {
   company Company @relation(fields: [companyId], references: [id])
 }
 
+model Supplier {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  document  String?
+  email     String?
+  phone     String?
+  address   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  printers           Printer[]
+  filaments          Filament[]
+  inventoryMaterials InventoryMaterial[]
+
+  @@unique([companyId, name])
+  @@unique([companyId, document])
+  @@index([companyId, name])
+}
+
 model Printer {
   id           String        @id @default(uuid())
   companyId    String
@@ -97,11 +130,13 @@ model Printer {
   location     String?
   notes        String?
   status       PrinterStatus @default(OFFLINE)
+  supplierId   String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   productionJobs ProductionJob[]
+  supplier       Supplier?       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, name])
   @@index([companyId, status])
@@ -118,34 +153,59 @@ model Filament {
   price          Decimal?         @db.Decimal(10, 2)
   lot            String?
   purchasedAt    DateTime?
+  supplierId     String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
   company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   productionJobs ProductionJob[]
+  supplier       Supplier?       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
 
   @@index([companyId, material])
 }
 
+model InventoryMaterial {
+  id              String            @id @default(uuid())
+  companyId       String
+  supplierId      String?
+  name            String
+  category        InventoryCategory @default(OTHER)
+  sku             String?
+  unit            String
+  currentQuantity Decimal           @default(0) @db.Decimal(12, 3)
+  minimumQuantity Decimal           @default(0) @db.Decimal(12, 3)
+  unitCost        Decimal?          @db.Decimal(10, 2)
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, sku])
+  @@index([companyId, category])
+  @@index([supplierId])
+}
+
 model ProductionJob {
-  id             String           @id @default(uuid())
-  companyId      String
-  printerId      String
-  filamentId     String
-  orderId        String?          @unique
-  name           String
-  status         ProductionStatus @default(QUEUED)
-  plannedWeightG Int
+  id                     String           @id @default(uuid())
+  companyId              String
+  printerId              String
+  filamentId             String
+  orderId                String?          @unique
+  name                   String
+  status                 ProductionStatus @default(QUEUED)
+  plannedWeightG         Int
   plannedDurationMinutes Int?
-  actualWeightG  Int?
-  actualDurationSeconds Int @default(0)
-  startedAt      DateTime?
-  activeSince    DateTime?
-  completedAt    DateTime?
-  archivedAt     DateTime?
-  notes          String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  actualWeightG          Int?
+  actualDurationSeconds  Int              @default(0)
+  startedAt              DateTime?
+  activeSince            DateTime?
+  completedAt            DateTime?
+  archivedAt             DateTime?
+  notes                  String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
   company  Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   printer  Printer        @relation(fields: [printerId], references: [id], onDelete: Restrict)

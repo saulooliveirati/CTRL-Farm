@@ -4,11 +4,14 @@ O schema é `prisma/schema.prisma`; toda alteração deve vir acompanhada de uma
 
 ## Relações atuais
 
-- `Company` é o tenant raiz. Usuários, impressoras, bobinas, clientes, pedidos e produções pertencem a uma empresa.
+- `Company` é o tenant raiz. Usuários, fornecedores, impressoras, bobinas, materiais, clientes, pedidos e produções pertencem a uma empresa.
+- `Supplier` centraliza os dados do fornecedor e pode estar associado a impressoras, bobinas e itens do estoque geral.
+- `InventoryMaterial` registra equipamentos auxiliares, insumos, peças, ferramentas, embalagens e outros itens com unidade, saldo, estoque mínimo, custo e fornecedor.
 - `Customer` possui zero ou mais `CustomerOrder`; documento, quando informado, é único dentro da empresa.
 - `CustomerOrder` registra descrição, quantidade, preço unitário, prazo e status. Tem no máximo uma `ProductionJob` vinculada.
 - `ProductionJob` aponta para uma impressora, uma bobina e opcionalmente um pedido. Registra peso planejado/real, tempo previsto, início, conclusão e duração ativa acumulada (desconta pausas). Produções concluídas podem ser arquivadas sem perder o histórico.
 - `Filament.currentWeightG` é atualizado atomicamente ao concluir uma produção.
+- O estoque geral alerta quando o saldo alcança ou fica abaixo do mínimo; bobinas continuam com controle próprio em gramas, integrado à produção.
 - Uma impressora ou bobina referenciada por histórico de produção não pode ser apagada (`Restrict`). Clientes com pedidos e pedidos com produção vinculada também são preservados. A API informa o motivo em vez de expor erro interno.
 - Uma produção só pode ser excluída se estiver na fila ou cancelada e nunca tiver iniciado nem registrado consumo; produções iniciadas permanecem como histórico, mesmo canceladas ou com falha.
 

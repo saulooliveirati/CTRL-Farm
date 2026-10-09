@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+import { IsEnum, IsOptional, IsString, IsUUID, MaxLength, MinLength } from "class-validator";
 
 import { PrinterStatus } from "@prisma/client";
 
@@ -44,4 +44,8 @@ export class CreatePrinterDto {
   @IsOptional()
   @IsEnum(PrinterStatus)
   status?: PrinterStatus;
+
+  @ApiPropertyOptional({ description: "Fornecedor do equipamento" })
+  @IsOptional() @IsUUID()
+  supplierId?: string | null;
 }

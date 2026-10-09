@@ -11,11 +11,13 @@ export class PrintersService {
   findAll(companyId: string) {
     return this.prisma.printer.findMany({
       where: { companyId },
+      include: { supplier: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" },
     });
   }
 
   async create(companyId: string, dto: CreatePrinterDto) {
+    await this.ensureSupplier(companyId, dto.supplierId);
     try {
       return await this.prisma.printer.create({
         data: {
@@ -27,7 +29,9 @@ export class PrintersService {
           location: dto.location?.trim() || null,
           notes: dto.notes?.trim() || null,
           status: dto.status,
+          supplierId: dto.supplierId || null,
         },
+        include: { supplier: { select: { id: true, name: true } } },
       });
     } catch (error: unknown) {
       if (this.isUniqueViolation(error)) {
@@ -39,6 +43,7 @@ export class PrintersService {
 
   async update(companyId: string, id: string, dto: UpdatePrinterDto) {
     await this.ensureOwned(companyId, id);
+    await this.ensureSupplier(companyId, dto.supplierId);
     try {
       return await this.prisma.printer.update({
         where: { id },
@@ -50,7 +55,9 @@ export class PrintersService {
           ...(dto.location !== undefined && { location: dto.location.trim() || null }),
           ...(dto.notes !== undefined && { notes: dto.notes.trim() || null }),
           ...(dto.status !== undefined && { status: dto.status }),
+          ...(dto.supplierId !== undefined && { supplierId: dto.supplierId || null }),
         },
+        include: { supplier: { select: { id: true, name: true } } },
       });
     } catch (error: unknown) {
       if (this.isUniqueViolation(error)) {
@@ -71,6 +78,12 @@ export class PrintersService {
   private async ensureOwned(companyId: string, id: string) {
     const printer = await this.prisma.printer.findFirst({ where: { id, companyId }, select: { id: true } });
     if (!printer) throw new NotFoundException("Impressora não encontrada.");
+  }
+
+  private async ensureSupplier(companyId: string, supplierId?: string | null) {
+    if (!supplierId) return;
+    const supplier = await this.prisma.supplier.findFirst({ where: { id: supplierId, companyId }, select: { id: true } });
+    if (!supplier) throw new NotFoundException("Fornecedor não encontrado nesta empresa.");
   }
 
   private isUniqueViolation(error: unknown): boolean {

@@ -11,6 +11,8 @@ export type PrinterRecord = {
   location: string | null;
   notes: string | null;
   status: "READY" | "PRINTING" | "PAUSED" | "ERROR" | "MAINTENANCE" | "OFFLINE";
+  supplierId: string | null;
+  supplier: { id: string; name: string } | null;
   createdAt: string;
 };
 

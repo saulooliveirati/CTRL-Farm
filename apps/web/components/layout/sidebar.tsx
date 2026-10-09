@@ -6,6 +6,8 @@ const navigation = [
   { label: "Dashboard", href: "/", icon: "⌂" },
   { label: "Impressoras", href: "/printers", icon: "▣" },
   { label: "Filamentos", href: "/filaments", icon: "◉" },
+  { label: "Materiais e equipamentos", href: "/materials", icon: "▤" },
+  { label: "Fornecedores", href: "/suppliers", icon: "♧" },
   { label: "Produção", href: "/production", icon: "▶" },
   { label: "Clientes", href: "/customers", icon: "♙" },
   { label: "Pedidos", href: "/orders", icon: "□" },
