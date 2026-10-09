@@ -1,0 +1,32 @@
+{
+  "name": "ctrl-farm",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@12.6.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter ./apps/* dev",
+    "build": "pnpm --recursive build",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "check": "biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@nestjs/config": "^12.0.1",
+    "@nestjs/passport": "^12.0.0",
+    "@nestjs/swagger": "^12.0.2",
+    "@prisma/client": "6.16.3",
+    "bcrypt": "^6.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "jsonwebtoken": "^9.0.3",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "prisma": "6.16.3",
+    "reflect-metadata": "^0.2.2",
+    "swagger-ui-express": "^5.0.1"
+  }
+}

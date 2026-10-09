@@ -1,0 +1,192 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  OPERATOR
+  VIEWER
+}
+
+enum PrinterStatus {
+  READY
+  PRINTING
+  PAUSED
+  ERROR
+  MAINTENANCE
+  OFFLINE
+}
+
+enum FilamentMaterial {
+  PLA
+  PETG
+  ABS
+  ASA
+  TPU
+  NYLON
+  PC
+  OTHER
+}
+
+enum ProductionStatus {
+  QUEUED
+  PRINTING
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum OrderStatus {
+  DRAFT
+  IN_PRODUCTION
+  COMPLETED
+  CANCELLED
+}
+
+model Company {
+  id        String  @id @default(uuid())
+  name      String
+  tradeName String?
+  document  String? @unique
+  email     String?
+  phone     String?
+  active    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  printers       Printer[]
+  filaments      Filament[]
+  productionJobs ProductionJob[]
+  customers      Customer[]
+  orders         CustomerOrder[]
+}
+
+model User {
+  id        String @id @default(uuid())
+  companyId String
+
+  name     String
+  email    String @unique
+  password String
+
+  role   UserRole @default(OPERATOR)
+  active Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+}
+
+model Printer {
+  id           String        @id @default(uuid())
+  companyId    String
+  name         String
+  manufacturer String?
+  model        String?
+  serialNumber String?
+  location     String?
+  notes        String?
+  status       PrinterStatus @default(OFFLINE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productionJobs ProductionJob[]
+
+  @@unique([companyId, name])
+  @@index([companyId, status])
+}
+
+model Filament {
+  id             String           @id @default(uuid())
+  companyId      String
+  material       FilamentMaterial
+  brand          String
+  color          String
+  initialWeightG Int
+  currentWeightG Int
+  price          Decimal?         @db.Decimal(10, 2)
+  lot            String?
+  purchasedAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productionJobs ProductionJob[]
+
+  @@index([companyId, material])
+}
+
+model ProductionJob {
+  id             String           @id @default(uuid())
+  companyId      String
+  printerId      String
+  filamentId     String
+  orderId        String?          @unique
+  name           String
+  status         ProductionStatus @default(QUEUED)
+  plannedWeightG Int
+  actualWeightG  Int?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  company  Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  printer  Printer        @relation(fields: [printerId], references: [id], onDelete: Restrict)
+  filament Filament       @relation(fields: [filamentId], references: [id], onDelete: Restrict)
+  order    CustomerOrder? @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status])
+  @@index([printerId, status])
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  companyId String
+  name      String
+  document  String?
+  email     String?
+  phone     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  orders  CustomerOrder[]
+
+  @@unique([companyId, document])
+  @@index([companyId, name])
+}
+
+model CustomerOrder {
+  id          String      @id @default(uuid())
+  companyId   String
+  customerId  String
+  description String
+  quantity    Int         @default(1)
+  unitPrice   Decimal     @db.Decimal(10, 2)
+  dueAt       DateTime?
+  notes       String?
+  status      OrderStatus @default(DRAFT)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  productionJob ProductionJob?
+
+  @@index([companyId, status])
+  @@index([customerId, createdAt])
+}

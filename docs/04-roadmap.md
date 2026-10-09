@@ -1,0 +1,21 @@
+# Roadmap
+
+## Entregue no beta
+
+- [x] Cadastro de empresa, login e sessão segura.
+- [x] Gestão de impressoras e estados operacionais.
+- [x] Cadastro de bobinas e saldo em gramas.
+- [x] Produção com transições válidas, exclusão mútua por impressora e baixa real de material.
+- [x] Cadastro de clientes e pedidos, com ligação pedido–produção e status sincronizado.
+- [x] Isolamento de dados pelo tenant autenticado e migrations versionadas.
+
+## Próximas etapas
+
+1. Revisar beta com uso real; priorizar defeitos observados e preparar seed/dados de demonstração.
+2. Evoluir pedidos para itens múltiplos, associação de várias produções por pedido e avanço por quantidade.
+3. Associar operadores, duração e modelos/arquivos 3D às produções.
+4. Completar gestão de dados do cliente e histórico de contato.
+5. Custos, pagamentos e relatórios financeiros após definir as regras de negócio.
+6. Planejar uma revisão visual e de experiência de uso, fora do escopo desta etapa.
+
+Atualize as caixas e a ordem conforme o usuário valide cada etapa.
