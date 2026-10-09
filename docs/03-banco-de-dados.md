@@ -9,14 +9,15 @@ O schema é `prisma/schema.prisma`; toda alteração deve vir acompanhada de uma
 - `CustomerOrder` registra descrição, quantidade, preço unitário, prazo e status. Tem no máximo uma `ProductionJob` vinculada.
 - `ProductionJob` aponta para uma impressora, uma bobina e opcionalmente um pedido. Registra peso planejado e peso real.
 - `Filament.currentWeightG` é atualizado atomicamente ao concluir uma produção.
-- Uma impressora ou bobina referenciada por histórico de produção não pode ser apagada (`Restrict`). Clientes com pedidos também são preservados.
+- Uma impressora ou bobina referenciada por histórico de produção não pode ser apagada (`Restrict`). Clientes com pedidos e pedidos com produção vinculada também são preservados. A API informa o motivo em vez de expor erro interno.
+- Uma produção só pode ser excluída se estiver na fila ou cancelada e nunca tiver iniciado nem registrado consumo; produções iniciadas permanecem como histórico, mesmo canceladas ou com falha.
 
 ## Ciclo do pedido
 
-`DRAFT` → produção criada e vinculada → `IN_PRODUCTION` quando a produção inicia → `COMPLETED` quando finaliza. Cancelar a produção na fila cancela o pedido vinculado. Pedido sem produção pode ser cancelado diretamente.
+`DRAFT` → produção criada e vinculada → `IN_PRODUCTION` quando a produção inicia → `COMPLETED` quando finaliza. Cancelar a produção cancela o pedido vinculado. Pedido sem produção pode ser cancelado ou excluído diretamente.
 
 ## Ciclo da produção
 
-`QUEUED` → `PRINTING` ↔ `PAUSED` → `COMPLETED` / `FAILED` / `CANCELLED`. Uma produção com falha pode ser tentada novamente. A baixa do peso real e a atualização do status são feitas na mesma transação para não deixar estoque e histórico divergentes.
+`QUEUED` → `PRINTING` ↔ `PAUSED` → `COMPLETED` / `FAILED` / `CANCELLED`. Produções na fila, imprimindo ou pausadas podem ser canceladas. Uma produção com falha pode ser tentada novamente. A baixa do peso real e a atualização do status são feitas na mesma transação para não deixar estoque e histórico divergentes.
 
 Mais detalhes funcionais: [visão geral](01-visao-geral.md). A validação de escopo por empresa é obrigatória em todo serviço.

@@ -61,7 +61,9 @@ export class PrintersService {
   }
 
   async remove(companyId: string, id: string) {
-    await this.ensureOwned(companyId, id);
+    const printer = await this.prisma.printer.findFirst({ where: { id, companyId }, select: { id: true, _count: { select: { productionJobs: true } } } });
+    if (!printer) throw new NotFoundException("Impressora não encontrada.");
+    if (printer._count.productionJobs > 0) throw new ConflictException("Esta impressora possui histórico de produção e não pode ser excluída. Altere seu status para manutenção ou inativa.");
     await this.prisma.printer.delete({ where: { id } });
     return { id };
   }

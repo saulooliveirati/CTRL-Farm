@@ -52,4 +52,12 @@ export class OrdersService {
       return tx.customerOrder.update({ where: { id }, data: { status: OrderStatus.CANCELLED }, include: { customer: { select: { id: true, name: true } } } });
     });
   }
+
+  async remove(companyId: string, id: string) {
+    const order = await this.prisma.customerOrder.findFirst({ where: { id, companyId }, select: { id: true, productionJob: { select: { id: true } } } });
+    if (!order) throw new NotFoundException("Pedido não encontrado.");
+    if (order.productionJob) throw new ConflictException("Este pedido possui produção vinculada e não pode ser excluído. Mantenha-o para preservar o histórico.");
+    await this.prisma.customerOrder.delete({ where: { id } });
+    return { id };
+  }
 }

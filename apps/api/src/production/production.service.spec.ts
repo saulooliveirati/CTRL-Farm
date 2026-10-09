@@ -1,3 +1,4 @@
+import { ConflictException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 
 import { ProductionService } from "./production.service.js";
@@ -34,5 +35,21 @@ describe("ProductionService", () => {
 
     await expect(service.update("company-1", "job-2", { status: "PRINTING" })).rejects.toThrow("Esta impressora já possui uma produção em andamento.");
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("permite excluir produção cancelada sem início ou consumo", async () => {
+    const findFirst = vi.fn().mockResolvedValue({ id: "job-1", status: "CANCELLED", startedAt: null, actualWeightG: null });
+    const remove = vi.fn();
+    const service = new ProductionService({ productionJob: { findFirst, delete: remove } } as never);
+    await expect(service.remove("company-1", "job-1")).resolves.toEqual({ id: "job-1" });
+    expect(remove).toHaveBeenCalledWith({ where: { id: "job-1" } });
+  });
+
+  it("preserva produções que já foram iniciadas", async () => {
+    const findFirst = vi.fn().mockResolvedValue({ id: "job-1", status: "CANCELLED", startedAt: new Date(), actualWeightG: null });
+    const remove = vi.fn();
+    const service = new ProductionService({ productionJob: { findFirst, delete: remove } } as never);
+    await expect(service.remove("company-1", "job-1")).rejects.toBeInstanceOf(ConflictException);
+    expect(remove).not.toHaveBeenCalled();
   });
 });

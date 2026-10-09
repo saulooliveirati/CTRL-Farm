@@ -106,10 +106,20 @@ export class ProductionService {
     });
   }
 
+  async remove(companyId: string, id: string) {
+    const job = await this.prisma.productionJob.findFirst({ where: { id, companyId }, select: { id: true, status: true, startedAt: true, actualWeightG: true } });
+    if (!job) throw new NotFoundException("Ordem de produção não encontrada.");
+    if ((job.status !== ProductionStatus.QUEUED && job.status !== ProductionStatus.CANCELLED) || job.startedAt || job.actualWeightG !== null) {
+      throw new ConflictException("Esta produção possui histórico operacional e não pode ser excluída.");
+    }
+    await this.prisma.productionJob.delete({ where: { id } });
+    return { id };
+  }
+
   private isAllowedTransition(from: ProductionStatus, to: ProductionStatus) {
     const transitions: Record<ProductionStatus, ProductionStatus[]> = {
       QUEUED: [ProductionStatus.PRINTING, ProductionStatus.CANCELLED],
-      PRINTING: [ProductionStatus.PAUSED, ProductionStatus.COMPLETED, ProductionStatus.FAILED],
+      PRINTING: [ProductionStatus.PAUSED, ProductionStatus.COMPLETED, ProductionStatus.FAILED, ProductionStatus.CANCELLED],
       PAUSED: [ProductionStatus.PRINTING, ProductionStatus.COMPLETED, ProductionStatus.FAILED, ProductionStatus.CANCELLED],
       COMPLETED: [], FAILED: [ProductionStatus.PRINTING], CANCELLED: [],
     };

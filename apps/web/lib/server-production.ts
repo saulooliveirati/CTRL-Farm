@@ -8,6 +8,7 @@ export type ProductionRecord = {
   status: "QUEUED" | "PRINTING" | "PAUSED" | "COMPLETED" | "FAILED" | "CANCELLED";
   plannedWeightG: number;
   actualWeightG: number | null;
+  startedAt: string | null;
   orderId: string | null;
   order: { id: string; description: string } | null;
   createdAt: string;

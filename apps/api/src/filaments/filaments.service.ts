@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 
 import { PrismaService } from "../database/prisma.service.js";
 import { CreateFilamentDto } from "./dto/create-filament.dto.js";
@@ -56,8 +56,9 @@ export class FilamentsService {
   }
 
   async remove(companyId: string, id: string) {
-    const filament = await this.prisma.filament.findFirst({ where: { id, companyId }, select: { id: true } });
+    const filament = await this.prisma.filament.findFirst({ where: { id, companyId }, select: { id: true, _count: { select: { productionJobs: true } } } });
     if (!filament) throw new NotFoundException("Filamento não encontrado.");
+    if (filament._count.productionJobs > 0) throw new ConflictException("Este filamento possui histórico de produção e não pode ser excluído. Mantenha-o para preservar o rastreio de consumo.");
     await this.prisma.filament.delete({ where: { id } });
     return { id };
   }

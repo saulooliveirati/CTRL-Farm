@@ -6,3 +6,8 @@ export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
   return proxyAuthenticatedApiRequest(`/production/${encodeURIComponent(id)}`, request, "PATCH");
 }
+
+export async function DELETE(request: Request, context: RouteContext) {
+  const { id } = await context.params;
+  return proxyAuthenticatedApiRequest(`/production/${encodeURIComponent(id)}`, request, "DELETE");
+}

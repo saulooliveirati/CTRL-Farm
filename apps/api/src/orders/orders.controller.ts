@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiCreatedResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
@@ -26,4 +26,8 @@ export class OrdersController {
   @Patch(":id/cancel")
   @ApiOperation({ summary: "Cancela um pedido ainda sem produção vinculada" })
   cancel(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string) { return this.ordersService.cancel(user.companyId, id); }
+
+  @Delete(":id")
+  @ApiOperation({ summary: "Remove pedido sem produção vinculada" })
+  remove(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string) { return this.ordersService.remove(user.companyId, id); }
 }

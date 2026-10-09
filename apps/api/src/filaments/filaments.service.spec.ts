@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 
 import { FilamentsService } from "./filaments.service.js";
@@ -30,5 +30,13 @@ describe("FilamentsService", () => {
 
     await expect(service.update("company-1", "f2", { currentWeightG: 200 })).rejects.toBeInstanceOf(NotFoundException);
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("retorna conflito ao excluir bobina com produções vinculadas", async () => {
+    const findFirst = vi.fn().mockResolvedValue({ id: "filament-1", _count: { productionJobs: 1 } });
+    const remove = vi.fn();
+    const service = new FilamentsService({ filament: { findFirst, delete: remove } } as never);
+    await expect(service.remove("company-1", "filament-1")).rejects.toBeInstanceOf(ConflictException);
+    expect(remove).not.toHaveBeenCalled();
   });
 });

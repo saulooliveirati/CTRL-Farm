@@ -23,4 +23,12 @@ describe("OrdersService", () => {
     await expect(service.cancel("company-1", "order-1")).rejects.toBeInstanceOf(ConflictException);
     expect(update).not.toHaveBeenCalled();
   });
+
+  it("não exclui pedido com produção vinculada", async () => {
+    const findFirst = vi.fn().mockResolvedValue({ id: "order-1", productionJob: { id: "job-1" } });
+    const remove = vi.fn();
+    const service = new OrdersService({ customerOrder: { findFirst, delete: remove } } as never);
+    await expect(service.remove("company-1", "order-1")).rejects.toBeInstanceOf(ConflictException);
+    expect(remove).not.toHaveBeenCalled();
+  });
 });

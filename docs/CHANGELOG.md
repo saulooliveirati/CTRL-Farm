@@ -2,6 +2,18 @@
 
 As mudanças relevantes são registradas por entrega. Datas usam `YYYY-MM-DD`.
 
+## 2026-10-09 — Exclusões seguras e cancelamento da produção
+
+### Adicionado
+
+- Cancelamento de ordens de produção em andamento e pausadas.
+- Exclusão de produções sem início ou consumo registrado e de pedidos ainda sem produção vinculada.
+- Mensagens 409 claras quando impressoras, bobinas, pedidos ou produções têm histórico que precisa ser preservado.
+
+### Corrigido
+
+- Falhas ao excluir impressoras e bobinas agora informam que o histórico de produção impede a remoção, em vez de retornar erro interno.
+
 ## 2026-10-09 — Beta operacional
 
 ### Adicionado
