@@ -11,7 +11,10 @@ const labels: Record<Status, string> = { QUEUED: "Na fila", PRINTING: "Imprimind
 const formatDuration = (seconds: number) => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  return hours > 0 ? `${hours}h ${minutes}min` : `${minutes}min`;
+  const remainder = seconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}min ${remainder}s`;
+  if (minutes > 0) return `${minutes}min ${remainder}s`;
+  return `${remainder}s`;
 };
 
 export function ProductionManager({ initialPrinters, initialFilaments, initialJobs, initialOrders, initialOrderId, initialError }: {
