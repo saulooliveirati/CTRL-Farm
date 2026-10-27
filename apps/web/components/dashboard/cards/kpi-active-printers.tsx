@@ -1,6 +1,7 @@
 "use client";
 
-import { Printer, Activity, CheckCircle2, AlertTriangle, Settings2 } from "lucide-react";
+import Link from "next/link";
+import { Printer, Activity, CheckCircle2, AlertTriangle, Settings2, ArrowRight } from "lucide-react";
 import type { CardConfig } from "@/types/dashboard-grid";
 import type { PrinterRecord } from "@/lib/server-printers";
 
@@ -12,7 +13,7 @@ interface KpiActivePrintersProps {
 }
 
 export function KpiActivePrintersCard({
-  printers,
+  printers = [],
   config,
   onOpenSettings,
   isEditing,
@@ -35,24 +36,26 @@ export function KpiActivePrintersCard({
 
       {/* Header */}
       <div className="flex items-center justify-between gap-3 relative z-10">
-        <div className="flex items-center gap-2.5">
+        <Link href="/printers" className="flex items-center gap-2.5 group-hover:opacity-90 transition">
           <div className="p-2.5 rounded-lg bg-[#20c997]/10 border border-[#20c997]/20 text-[#20c997]">
             <Printer className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-slate-200 tracking-tight">
-              {config?.title || "Parque Ativo"}
+            <h3 className="text-sm font-semibold text-slate-200 tracking-tight group-hover:text-[#20c997] transition">
+              {config?.title || "Parque de Impressoras"}
             </h3>
             <p className="text-[11px] text-slate-400">
               {config?.subtitle || "Ocupação do Parque"}
             </p>
           </div>
-        </div>
+        </Link>
 
         <div className="flex items-center gap-1.5">
           <span
             className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-medium border ${
-              isOptimal
+              total === 0
+                ? "bg-slate-800 text-slate-400 border-slate-700"
+                : isOptimal
                 ? "bg-[#20c997]/10 text-[#20c997] border-[#20c997]/30"
                 : "bg-amber-500/10 text-amber-400 border-amber-500/30"
             }`}
@@ -74,7 +77,7 @@ export function KpiActivePrintersCard({
       </div>
 
       {/* Main Metric */}
-      <div className="my-auto py-2 relative z-10">
+      <Link href="/printers" className="my-auto py-2 relative z-10 block">
         <div className="flex items-baseline gap-2">
           <span className="text-3xl sm:text-4xl font-extrabold font-mono text-slate-100 tracking-tight">
             {printing}
@@ -110,7 +113,7 @@ export function KpiActivePrintersCard({
             </div>
           </div>
         )}
-      </div>
+      </Link>
 
       {/* Footer Breakdown */}
       <div className="pt-2 border-t border-[#263246]/60 flex items-center justify-between text-[11px] text-slate-400 font-mono relative z-10">

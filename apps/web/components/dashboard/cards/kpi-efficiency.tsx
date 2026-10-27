@@ -1,6 +1,7 @@
 "use client";
 
-import { Zap, TrendingUp, Settings2 } from "lucide-react";
+import Link from "next/link";
+import { Zap, TrendingUp, Settings2, CheckCircle2 } from "lucide-react";
 import type { CardConfig } from "@/types/dashboard-grid";
 import type { ProductionRecord } from "@/lib/server-production";
 
@@ -12,7 +13,7 @@ interface KpiEfficiencyProps {
 }
 
 export function KpiEfficiencyCard({
-  jobs,
+  jobs = [],
   config,
   onOpenSettings,
   isEditing,
@@ -22,17 +23,19 @@ export function KpiEfficiencyCard({
   const failed = jobs.filter((j) => j.status === "FAILED").length;
   const totalFinished = completed + failed;
 
-  // Real or synthetic efficiency
+  // Real or initial efficiency
   const efficiency =
     totalFinished > 0
       ? Math.round((completed / totalFinished) * 100)
-      : (config?.settings?.targetEfficiency ?? 94);
+      : 100; // 100% de disponibilidade inicial com 0 falhas
 
   const target = config?.settings?.targetEfficiency ?? 92;
   const isTargetMet = efficiency >= target;
 
-  // Mini sparkline SVG data points (e.g. 7 points for days)
-  const sparklinePoints = [84, 88, 86, 91, 89, 93, efficiency];
+  // Mini sparkline SVG data points (e.g. 7 points)
+  const sparklinePoints = totalFinished > 0
+    ? [Math.max(70, efficiency - 6), Math.max(70, efficiency - 4), Math.max(70, efficiency - 2), efficiency]
+    : [100, 100, 100, 100];
   const minVal = Math.min(...sparklinePoints) - 5;
   const maxVal = Math.max(...sparklinePoints) + 5;
   const width = 120;
@@ -55,24 +58,24 @@ export function KpiEfficiencyCard({
 
       {/* Header */}
       <div className="flex items-center justify-between gap-3 relative z-10">
-        <div className="flex items-center gap-2.5">
+        <Link href="/production" className="flex items-center gap-2.5 group-hover:opacity-90 transition">
           <div className="p-2.5 rounded-lg bg-[#20c997]/10 border border-[#20c997]/20 text-[#20c997]">
             <Zap className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-slate-200 tracking-tight">
+            <h3 className="text-sm font-semibold text-slate-200 tracking-tight group-hover:text-[#20c997] transition">
               {config?.title || "Eficiência Operacional"}
             </h3>
             <p className="text-[11px] text-slate-400">
               {config?.subtitle || "Índice OEE Diário"}
             </p>
           </div>
-        </div>
+        </Link>
 
         <div className="flex items-center gap-1.5">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-medium border bg-emerald-500/10 text-[#20c997] border-[#20c997]/30">
             <TrendingUp className="w-3 h-3" />
-            +3.2%
+            {totalFinished > 0 ? `${completed}/${totalFinished}` : "0 Falhas"}
           </span>
 
           {isEditing && (
@@ -88,7 +91,7 @@ export function KpiEfficiencyCard({
       </div>
 
       {/* Main Metric with SVG Sparkline */}
-      <div className="my-auto py-2 flex items-center justify-between gap-4 relative z-10">
+      <Link href="/production" className="my-auto py-2 flex items-center justify-between gap-4 relative z-10 block">
         <div>
           <div className="flex items-baseline gap-1">
             <span className="text-3xl sm:text-4xl font-extrabold font-mono text-slate-100 tracking-tight">
@@ -96,20 +99,24 @@ export function KpiEfficiencyCard({
             </span>
           </div>
           <p className="text-[11px] text-slate-400 mt-1">
-            {isTargetMet ? "✓ Alta Performance" : "Abaixo da meta estimada"}
+            {totalFinished === 0
+              ? "✓ Alta Disponibilidade (Sem paradas)"
+              : isTargetMet
+              ? "✓ Alta Performance"
+              : "Abaixo da meta estimada"}
           </p>
         </div>
 
-        {/* Mini SVG Sparkline */}
-        <div className="relative">
-          <svg width={width} height={height} className="overflow-visible">
+        {/* Mini Sparkline Chart */}
+        <div className="w-[120px] h-[36px]">
+          <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full overflow-visible">
             <defs>
-              <linearGradient id="sparklineGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#20c997" stopOpacity="0.35" />
-                <stop offset="100%" stopColor="#20c997" stopOpacity="0.0" />
+              <linearGradient id="effGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#20c997" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#20c997" stopOpacity="0" />
               </linearGradient>
             </defs>
-            <polygon points={areaString} fill="url(#sparklineGrad)" />
+            <polygon points={areaString} fill="url(#effGrad)" />
             <polyline
               points={pointsString}
               fill="none"
@@ -118,27 +125,14 @@ export function KpiEfficiencyCard({
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            {/* Last dot glow */}
-            <circle
-              cx={width}
-              cy={height - ((efficiency - minVal) / (maxVal - minVal)) * height}
-              r="3.5"
-              fill="#20c997"
-              className="animate-pulse"
-            />
           </svg>
         </div>
-      </div>
+      </Link>
 
       {/* Footer Info */}
       <div className="pt-2 border-t border-[#263246]/60 flex items-center justify-between text-[11px] text-slate-400 font-mono relative z-10">
-        <div>
-          <span>Meta da Farm: </span>
-          <span className="text-slate-200 font-semibold">{target}%</span>
-        </div>
-        <div className="text-[10px] text-slate-400">
-          {completed} concluídas • {failed} falhas
-        </div>
+        <span>Concluídas: <strong className="text-slate-200">{completed}</strong></span>
+        <span>Falhas: <strong className={failed > 0 ? "text-rose-400" : "text-slate-200"}>{failed}</strong></span>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
-import { Layers, Clock, ArrowUpRight, Flame, Settings2 } from "lucide-react";
+import Link from "next/link";
+import { Layers, Clock, ArrowUpRight, Settings2 } from "lucide-react";
 import type { CardConfig } from "@/types/dashboard-grid";
 import type { ProductionRecord } from "@/lib/server-production";
 import type { OrderRecord } from "@/lib/server-orders";
@@ -14,8 +15,8 @@ interface KpiProductionQueueProps {
 }
 
 export function KpiProductionQueueCard({
-  jobs,
-  orders,
+  jobs = [],
+  orders = [],
   config,
   onOpenSettings,
   isEditing,
@@ -32,9 +33,6 @@ export function KpiProductionQueueCard({
   const today = new Date().toISOString().slice(0, 10);
   const addedToday = queuedJobs.filter((j) => j.createdAt?.startsWith(today)).length;
 
-  const alertThreshold = config?.settings?.alertThresholdItems ?? 20;
-  const isHighQueue = totalQueued >= alertThreshold;
-
   return (
     <div className="relative flex flex-col justify-between h-full w-full p-5 bg-[#101827] border border-[#263246] hover:border-[#38bdf8]/40 hover:bg-[#151f30] rounded-xl transition-all duration-200 group shadow-lg shadow-black/20 overflow-hidden">
       {/* Background ambient glow */}
@@ -42,19 +40,19 @@ export function KpiProductionQueueCard({
 
       {/* Header */}
       <div className="flex items-center justify-between gap-3 relative z-10">
-        <div className="flex items-center gap-2.5">
+        <Link href="/production" className="flex items-center gap-2.5 group-hover:opacity-90 transition">
           <div className="p-2.5 rounded-lg bg-[#38bdf8]/10 border border-[#38bdf8]/20 text-[#38bdf8]">
             <Layers className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-slate-200 tracking-tight">
+            <h3 className="text-sm font-semibold text-slate-200 tracking-tight group-hover:text-sky-400 transition">
               {config?.title || "Fila de Produção"}
             </h3>
             <p className="text-[11px] text-slate-400">
               {config?.subtitle || "Ordens Pendentes"}
             </p>
           </div>
-        </div>
+        </Link>
 
         <div className="flex items-center gap-1.5">
           {config?.settings?.showTodayBadge !== false && (
@@ -76,7 +74,7 @@ export function KpiProductionQueueCard({
       </div>
 
       {/* Main Metric */}
-      <div className="my-auto py-2 relative z-10">
+      <Link href="/production" className="my-auto py-2 relative z-10 block">
         <div className="flex items-baseline gap-2">
           <span className="text-3xl sm:text-4xl font-extrabold font-mono text-slate-100 tracking-tight">
             {totalQueued}
@@ -94,20 +92,14 @@ export function KpiProductionQueueCard({
             {hours}h {mins}m
           </span>
         </div>
-      </div>
+      </Link>
 
       {/* Footer Info */}
       <div className="pt-2 border-t border-[#263246]/60 flex items-center justify-between text-[11px] text-slate-400 font-mono relative z-10">
-        <div className="flex items-center gap-1 text-slate-400">
-          <span>Pedidos pendentes:</span>
-          <span className="font-semibold text-slate-200">{orders.filter(o => o.status === "IN_PRODUCTION" || o.status === "DRAFT").length}</span>
-        </div>
-        {isHighQueue && (
-          <div className="flex items-center gap-1 text-amber-400 animate-pulse">
-            <Flame className="w-3.5 h-3.5" />
-            <span>Fila Elevada</span>
-          </div>
-        )}
+        <span>Total de Ordens: <strong className="text-slate-200">{jobs.length}</strong></span>
+        <Link href="/production" className="text-sky-400 hover:underline">
+          Ver Fila Completa →
+        </Link>
       </div>
     </div>
   );

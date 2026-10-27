@@ -17,6 +17,10 @@ import {
   Play,
   ShieldAlert,
   AlertTriangle,
+  Key,
+  Copy,
+  Check,
+  Send,
 } from "lucide-react";
 
 export function ClientsView({
@@ -32,6 +36,15 @@ export function ClientsView({
   const [editingClient, setEditingClient] = useState<any | null>(null);
   const [deletingClient, setDeletingClient] = useState<any | null>(null);
   const [selectedClient, setSelectedClient] = useState<any | null>(null);
+
+  // Approval state
+  const [approvingClient, setApprovingClient] = useState<any | null>(null);
+  const [approvalPlan, setApprovalPlan] = useState<string>("STARTER");
+  const [approvalCycle, setApprovalCycle] = useState<string>("MONTHLY");
+  const [approvalSendEmail, setApprovalSendEmail] = useState<boolean>(true);
+  const [approving, setApproving] = useState<boolean>(false);
+  const [approvalResult, setApprovalResult] = useState<any | null>(null);
+  const [keyCopied, setKeyCopied] = useState<boolean>(false);
 
   // Form states (Cadastro e Edição)
   const [name, setName] = useState("");
@@ -184,8 +197,78 @@ export function ClientsView({
     }
   }
 
+  const pendingCount = (clients || []).filter((c) => c.status === "PENDING").length;
+
+  function openApproveModal(c: any) {
+    setApprovingClient(c);
+    setApprovalPlan("STARTER");
+    setApprovalCycle("MONTHLY");
+    setApprovalSendEmail(true);
+    setApprovalResult(null);
+    setKeyCopied(false);
+  }
+
+  async function handleApprove(e: React.FormEvent) {
+    e.preventDefault();
+    if (!approvingClient) return;
+    setApproving(true);
+    try {
+      const res = await fetch(`/api/proxy/clients/${approvingClient.id}/approve-registration`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planCode: approvalPlan,
+          billingCycle: approvalCycle,
+          sendEmail: approvalSendEmail,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Falha ao aprovar cadastro.");
+
+      setApprovalResult(data);
+      onRefresh();
+    } catch (err: any) {
+      alert(err.message || "Erro ao aprovar cadastro.");
+    } finally {
+      setApproving(false);
+    }
+  }
+
+  function copyActivationKey(key: string) {
+    navigator.clipboard.writeText(key);
+    setKeyCopied(true);
+    setTimeout(() => setKeyCopied(false), 3000);
+  }
+
   return (
     <div className="space-y-5">
+      {/* Banner de Cadastros Pendentes */}
+      {pendingCount > 0 && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-950/25 p-4 text-xs text-amber-200 shadow-lg shadow-amber-950/20">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              <Clock className="h-5 w-5 animate-pulse" />
+            </div>
+            <div>
+              <p className="font-bold text-white text-sm">
+                {pendingCount} novo(s) cadastro(s) pendente(s) originado(s) do CTRL-Farm
+              </p>
+              <p className="text-[11px] text-amber-300/80 mt-0.5">
+                Os clientes estão na tela de bloqueio aguardando aprovação e chave de ativação. Aprove para liberar o acesso.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("PENDING")}
+            className="shrink-0 rounded-xl border border-amber-500/40 bg-amber-900/50 px-3.5 py-2 font-bold text-amber-200 hover:bg-amber-800/60 transition shadow"
+          >
+            Filtrar Pendentes ({pendingCount})
+          </button>
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#1b263b] pb-4">
         <div>
@@ -284,7 +367,7 @@ export function ClientsView({
                               : c.status === "PAUSED"
                                 ? "border-amber-500/30 bg-amber-950/40 text-amber-300"
                                 : c.status === "PENDING"
-                                  ? "border-blue-500/30 bg-blue-950/40 text-blue-400"
+                                  ? "border-amber-500/40 bg-amber-950/40 text-amber-300 animate-pulse"
                                   : "border-rose-500/30 bg-rose-950/40 text-rose-400"
                           }`}
                         >
@@ -295,7 +378,7 @@ export function ClientsView({
                                 : c.status === "PAUSED"
                                   ? "bg-amber-400"
                                   : c.status === "PENDING"
-                                    ? "bg-blue-400"
+                                    ? "bg-amber-400"
                                     : "bg-rose-400"
                             }`}
                           />
@@ -304,9 +387,11 @@ export function ClientsView({
                               ? "ATIVO"
                               : c.status === "PAUSED"
                                 ? "PAUSADO"
-                                : c.status === "SUSPENDED"
-                                  ? "SUSPENSO"
-                                  : c.status}
+                                : c.status === "PENDING"
+                                  ? "PENDENTE (AGUARDANDO CHAVE)"
+                                  : c.status === "SUSPENDED"
+                                    ? "SUSPENSO"
+                                    : c.status}
                           </span>
                         </span>
                       </td>
@@ -321,6 +406,19 @@ export function ClientsView({
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Botão de Aprovação Rápida para Cadastros Pendentes */}
+                          {c.status === "PENDING" && (
+                            <button
+                              type="button"
+                              onClick={() => openApproveModal(c)}
+                              title="Aprovar cadastro e emitir chave de ativação"
+                              className="flex items-center gap-1.5 rounded-lg border border-emerald-500/50 bg-emerald-950/40 px-2.5 py-1 text-[11px] font-bold text-emerald-300 hover:bg-emerald-900/60 transition shadow-sm"
+                            >
+                              <Key className="h-3.5 w-3.5 text-[#00df81]" />
+                              <span>Aprovar & Gerar Chave</span>
+                            </button>
+                          )}
+
                           {/* Editar */}
                           <button
                             type="button"
@@ -663,6 +761,156 @@ export function ClientsView({
                 {saving ? "Excluindo..." : "Confirmar Exclusão"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Aprovação e Geração de Chave */}
+      {approvingClient && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-emerald-500/30 bg-[#0c1425] p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#1b263b] pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Key className="h-5 w-5 text-[#00df81]" />
+                <span>Aprovar Cadastro & Emitir Chave de Ativação</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setApprovingClient(null);
+                  setApprovalResult(null);
+                }}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {approvalResult ? (
+              <div className="space-y-4 py-2">
+                <div className="flex items-center gap-3 rounded-xl border border-emerald-500/40 bg-emerald-950/40 p-4 text-emerald-300">
+                  <CheckCircle2 className="h-6 w-6 shrink-0 text-[#00df81]" />
+                  <div>
+                    <h4 className="font-bold text-sm text-white">Chave Gerada e Cadastro Aprovado!</h4>
+                    <p className="text-xs text-emerald-300/90 mt-0.5">
+                      {approvalResult.emailSent
+                        ? `A chave de ativação foi enviada por e-mail para ${approvingClient.email}.`
+                        : "A chave foi registrada no sistema e publicada no Firebase Firestore."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[#233352] bg-[#091122] p-4 space-y-2">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Chave Criptográfica RSA (CTRL-Farm)
+                  </span>
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-500/30 bg-emerald-950/20 px-3 py-2.5">
+                    <span className="font-mono text-base font-bold text-[#00df81] tracking-wider select-all">
+                      {approvalResult.activationKey}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => copyActivationKey(approvalResult.activationKey)}
+                      className="flex items-center gap-1.5 rounded-lg border border-[#233352] bg-[#0c1425] px-2.5 py-1 text-xs font-semibold text-slate-300 hover:text-white hover:border-[#00df81] transition"
+                    >
+                      {keyCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      <span>{keyCopied ? "Copiado!" : "Copiar"}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApprovingClient(null);
+                      setApprovalResult(null);
+                    }}
+                    className="rounded-xl bg-[#00df81] px-5 py-2 text-xs font-bold text-slate-950 hover:bg-[#1fe28c] transition"
+                  >
+                    Concluir e Fechar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleApprove} className="space-y-4 text-xs">
+                <div className="rounded-xl border border-[#1b263b] bg-[#091122] p-3.5 space-y-1.5">
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>Empresa:</span>
+                    <span className="font-bold text-white text-xs">{approvingClient.name}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>Responsável:</span>
+                    <span className="text-slate-200">{approvingClient.contactPerson || "Administrador"}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>E-mail:</span>
+                    <span className="font-mono text-slate-200">{approvingClient.email}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-slate-300">Selecione o Plano de Licenciamento</label>
+                  <select
+                    value={approvalPlan}
+                    onChange={(e) => setApprovalPlan(e.target.value)}
+                    className="h-10 w-full rounded-xl border border-[#1b263b] bg-[#091122] px-3 text-white outline-none focus:border-[#00df81]"
+                  >
+                    <option value="STARTER">Starter — 3 Impressoras, 2 Usuários (R$ 99/mês)</option>
+                    <option value="PROFESSIONAL">Professional — 10 Impressoras, 5 Usuários (R$ 199/mês)</option>
+                    <option value="BUSINESS">Business — 25 Impressoras, 15 Usuários + IA (R$ 399/mês)</option>
+                    <option value="ENTERPRISE">Enterprise — 100 Impressoras, 50 Usuários + IA + Multi-empresa (R$ 699/mês)</option>
+                    <option value="TRIAL">Trial — 15 Dias de Degustação Completa (Gratuito)</option>
+                    <option value="UNLIMITED_OWNER">Unlimited Owner — Acesso Total Sem Limites (Proprietário)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-slate-300">Ciclo de Cobrança</label>
+                  <select
+                    value={approvalCycle}
+                    onChange={(e) => setApprovalCycle(e.target.value)}
+                    className="h-10 w-full rounded-xl border border-[#1b263b] bg-[#091122] px-3 text-white outline-none focus:border-[#00df81]"
+                  >
+                    <option value="MONTHLY">Mensal (Renovação a cada 30 dias)</option>
+                    <option value="QUARTERLY">Trimestral (Renovação a cada 90 dias)</option>
+                    <option value="ANNUAL">Anual (Renovação a cada 365 dias)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2.5 rounded-xl border border-[#1b263b] bg-[#091122] p-3 text-slate-300">
+                  <input
+                    type="checkbox"
+                    id="approvalSendEmail"
+                    checked={approvalSendEmail}
+                    onChange={(e) => setApprovalSendEmail(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-[#00df81] focus:ring-0"
+                  />
+                  <label htmlFor="approvalSendEmail" className="cursor-pointer text-[11px] leading-snug">
+                    Enviar e-mail de confirmação automaticamente para{" "}
+                    <strong className="text-white">{approvingClient.email}</strong> com a chave de ativação e instruções de desbloqueio.
+                  </label>
+                </div>
+
+                <div className="flex justify-end gap-2.5 pt-3 border-t border-[#1b263b]">
+                  <button
+                    type="button"
+                    onClick={() => setApprovingClient(null)}
+                    className="rounded-xl border border-[#233352] px-4 py-2 font-semibold text-slate-400 hover:text-white"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={approving}
+                    className="flex items-center gap-2 rounded-xl bg-[#00df81] px-5 py-2 font-bold text-slate-950 hover:bg-[#1fe28c] disabled:opacity-50 shadow-md shadow-emerald-500/20"
+                  >
+                    <Key className="h-4 w-4" />
+                    <span>{approving ? "Emitindo Chave..." : "Confirmar Aprovação & Emitir Chave"}</span>
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

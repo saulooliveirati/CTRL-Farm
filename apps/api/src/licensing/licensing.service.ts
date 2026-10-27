@@ -362,24 +362,64 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`Tentando ativar licença: ${cleanKey} para usuário: ${user?.email || "Geral"}`);
 
     try {
-      const response = await fetch(`${this.admApiUrl}/licenses/activate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          activationKey: cleanKey,
-          hardwareFingerprint: hardwareFingerprint || "HW-CTRL-FARM-CLIENT",
-          clientVersion: "v2.5.0",
-        }),
-      });
+      let data: any = null;
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new BadRequestException(
-          errorData.message || `Falha na ativação junto ao ADM Gerente (Status ${response.status})`
-        );
+      // 1. Tenta comunicação direta com o ADM Gerente
+      try {
+        const response = await fetch(`${this.admApiUrl}/licenses/activate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            activationKey: cleanKey,
+            hardwareFingerprint: hardwareFingerprint || "HW-CTRL-FARM-CLIENT",
+            clientVersion: "v2.5.0",
+          }),
+          signal: AbortSignal.timeout(5000),
+        });
+
+        if (response.ok) {
+          data = await response.json();
+        } else {
+          this.logger.warn(`ADM retornou status ${response.status} ao ativar ${cleanKey}. Tentando Firestore...`);
+        }
+      } catch (admFetchErr: any) {
+        this.logger.warn(`Falha na chamada HTTP ao ADM Gerente: ${admFetchErr.message}. Tentando Firestore...`);
       }
 
-      const data = await response.json();
+      // 2. Fallback de Alta Disponibilidade: Consulta no Firebase Firestore se o ADM estiver offline/fechado
+      if (!data) {
+        const fbLicense = await this.fetchLicenseFromFirebase(cleanKey);
+        if (fbLicense && fbLicense.rsaSignature) {
+          this.logger.log(`[Firebase Licensing] Licença ${cleanKey} recuperada diretamente do Firestore.`);
+          data = {
+            activationKey: fbLicense.activationKey || cleanKey,
+            clientId: fbLicense.clientId,
+            clientName: fbLicense.clientName,
+            client: {
+              id: fbLicense.clientId,
+              name: fbLicense.clientName,
+              email: fbLicense.email || "",
+            },
+            plan: {
+              code: fbLicense.planCode,
+              name: fbLicense.planName || fbLicense.planCode,
+              maxUsers: fbLicense.maxUsers || 10,
+              maxPrinters: fbLicense.maxPrinters || 50,
+            },
+            planCode: fbLicense.planCode,
+            features: fbLicense.allowedFeatures || fbLicense.features || {},
+            issuedAt: fbLicense.issuedAt || new Date().toISOString(),
+            expiresAt: fbLicense.expiresAt,
+            rsaSignature: fbLicense.rsaSignature,
+          };
+        }
+      }
+
+      if (!data) {
+        throw new BadRequestException(
+          "Chave de ativação inválida ou não encontrada. Verifique a chave ou aguarde a aprovação no Sistema ADM Gerente.",
+        );
+      }
 
       // Reconstrói o payload canônico para validação da assinatura RSA
       const canonicalPayload = buildLicenseCanonicalPayload({
@@ -394,9 +434,9 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
 
       const isSignatureValid = this.verifySignature(canonicalPayload, data.rsaSignature);
       if (!isSignatureValid) {
-        this.logger.error("Assinatura RSA do payload retornado pelo ADM é INVÁLIDA!");
+        this.logger.error("Assinatura RSA do payload retornado pelo ADM/Firebase é INVÁLIDA!");
         throw new BadRequestException(
-          "A assinatura criptográfica RSA da chave fornecida é inválida. Chave não autorizada pelo Sistema ADM Gerente."
+          "A assinatura criptográfica RSA da chave fornecida é inválida. Chave não autorizada pelo Sistema ADM Gerente.",
         );
       }
 
@@ -490,12 +530,56 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
           orderBy: { createdAt: "desc" },
         });
       }
-    }
-
-    if (!dbLicense) {
+    } else {
+      // Somente se NÃO há usuário autenticado específico busca uma licença ativa geral
       dbLicense = await this.prisma.userLicense.findFirst({
+        where: { status: "ACTIVE" },
         orderBy: { createdAt: "desc" },
       });
+    }
+
+    // Se o usuário está autenticado e não tem licença ou a licença está pendente/sem chave
+    if (user?.id && (!dbLicense || dbLicense.status === "PENDING_ACTIVATION" || !dbLicense.activationKey)) {
+      // 1. Verifica no Firestore se o cadastro foi aprovado e a chave já foi emitida pelo ADM Gerente
+      try {
+        const firestore = this.firebase.getFirestore();
+        if (firestore) {
+          let pendingDoc = null;
+          if (user.companyId) {
+            const snap = await firestore.collection("pending_registrations").doc(user.companyId).get();
+            if (snap.exists) pendingDoc = snap.data();
+          }
+          if (!pendingDoc && user.email) {
+            const snap = await firestore.collection("pending_registrations").doc(user.email).get();
+            if (snap.exists) pendingDoc = snap.data();
+          }
+
+          if (pendingDoc && pendingDoc.status === "APPROVED" && pendingDoc.activationKey) {
+            this.logger.log(
+              `[Auto-Activate] Cadastro aprovado encontrado no Firestore para ${user.email}. Ativando chave ${pendingDoc.activationKey}...`,
+            );
+            await this.activateLicense(pendingDoc.activationKey, user);
+            dbLicense = await this.prisma.userLicense.findUnique({
+              where: { userId: user.id },
+            });
+          }
+        }
+      } catch (fbErr: any) {
+        this.logger.warn(`Erro ao verificar pendência no Firebase para ${user.email}: ${fbErr.message}`);
+      }
+
+      // Se após a consulta ainda estiver sem chave ou pendente de ativação:
+      if (!dbLicense || dbLicense.status === "PENDING_ACTIVATION" || !dbLicense.activationKey) {
+        return {
+          isLicensed: false,
+          isSuspended: false,
+          mode: "PENDING_ACTIVATION",
+          status: "PENDING_ACTIVATION",
+          message: "Aguardando aprovação do cadastro e registro da chave de ativação pelo Sistema ADM Gerente.",
+          daysRemaining: 0,
+          license: null,
+        };
+      }
     }
 
     // Se temos licença no banco para o usuário/empresa
@@ -757,8 +841,8 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
       };
     }
 
-    // Fallback para cache local se ainda não há licença no banco
-    if (this.currentLicense) {
+    // Fallback para cache local SOMENTE se não houver usuário autenticado específico
+    if (!user?.id && this.currentLicense) {
       let onlineCheckSuccess = false;
       let lockReason = "";
       const now = new Date();

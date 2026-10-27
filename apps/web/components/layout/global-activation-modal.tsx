@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Key, X, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
+import { Key, X, CheckCircle2, AlertCircle, Sparkles, RefreshCw } from "lucide-react";
 import { useLicensing } from "@/contexts/licensing-context";
 
 export function GlobalActivationModal() {
@@ -10,9 +10,29 @@ export function GlobalActivationModal() {
 
   const [inputKey, setInputKey] = useState(currentKey || "");
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   if (!isActivationModalOpen) return null;
+
+  async function handleCheckApproval() {
+    setChecking(true);
+    setStatusMsg(null);
+    try {
+      await refreshLicensing();
+      setStatusMsg({
+        type: "success",
+        text: "Verificação concluída. Status sincronizado com o servidor.",
+      });
+    } catch {
+      setStatusMsg({
+        type: "error",
+        text: "Não foi possível verificar no momento.",
+      });
+    } finally {
+      setChecking(false);
+    }
+  }
 
   async function handleActivate(e: React.FormEvent) {
     e.preventDefault();
@@ -109,22 +129,34 @@ export function GlobalActivationModal() {
             </p>
           </div>
 
-          <div className="flex justify-end gap-2.5 pt-2 border-t border-[#1b263b]">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-[#1b263b]">
             <button
               type="button"
-              onClick={() => setIsActivationModalOpen(false)}
-              className="rounded-xl border border-[#233352] px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+              onClick={handleCheckApproval}
+              disabled={checking}
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 hover:text-[#00df81] transition"
             >
-              Cancelar
+              <RefreshCw className={`h-3 w-3 ${checking ? "animate-spin" : ""}`} />
+              <span>Verificar Aprovação Automática</span>
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex items-center gap-2 rounded-xl bg-[#00df81] px-5 py-2 text-xs font-bold text-slate-950 transition hover:bg-[#1fe28c] shadow-md shadow-emerald-500/20 disabled:opacity-50"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span>{loading ? "Validando RSA..." : "Ativar Licença"}</span>
-            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsActivationModalOpen(false)}
+                className="rounded-xl border border-[#233352] px-3.5 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex items-center gap-2 rounded-xl bg-[#00df81] px-5 py-2 text-xs font-bold text-slate-950 transition hover:bg-[#1fe28c] shadow-md shadow-emerald-500/20 disabled:opacity-50"
+              >
+                <Sparkles className="h-4 w-4" />
+                <span>{loading ? "Validando RSA..." : "Ativar Licença"}</span>
+              </button>
+            </div>
           </div>
         </form>
       </div>

@@ -79,3 +79,52 @@ export class UpdateClientDto {
   @IsOptional()
   notes?: string;
 }
+
+
+export class PendingRegistrationDto {
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  companyId?: string;
+
+  @ApiProperty({ example: "Minha Empresa 3D" })
+  @IsString()
+  @IsNotEmpty()
+  companyName: string;
+
+  @ApiProperty({ example: "João da Silva" })
+  @IsString()
+  @IsNotEmpty()
+  adminName: string;
+
+  @ApiProperty({ example: "joao@empresa.com" })
+  @IsEmail()
+  @IsNotEmpty()
+  adminEmail: string;
+
+  @ApiPropertyOptional({ example: "(11) 99999-8888" })
+  @IsString()
+  @IsOptional()
+  phone?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  requestedAt?: string;
+}
+
+export class ApproveRegistrationDto {
+  @ApiPropertyOptional({ example: "STARTER", default: "STARTER" })
+  @IsString()
+  @IsOptional()
+  planCode?: string;
+
+  @ApiPropertyOptional({ example: "MONTHLY", default: "MONTHLY" })
+  @IsString()
+  @IsOptional()
+  billingCycle?: "MONTHLY" | "QUARTERLY" | "ANNUAL";
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  sendEmail?: boolean;
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Disc3, AlertTriangle, CheckCircle, Package, Settings2 } from "lucide-react";
 import type { CardConfig } from "@/types/dashboard-grid";
 import type { FilamentRecord } from "@/lib/server-filaments";
@@ -12,7 +13,7 @@ interface KpiFilamentStockProps {
 }
 
 export function KpiFilamentStockCard({
-  filaments,
+  filaments = [],
   config,
   onOpenSettings,
   isEditing,
@@ -34,19 +35,19 @@ export function KpiFilamentStockCard({
 
       {/* Header */}
       <div className="flex items-center justify-between gap-3 relative z-10">
-        <div className="flex items-center gap-2.5">
+        <Link href="/filaments" className="flex items-center gap-2.5 group-hover:opacity-90 transition">
           <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400">
             <Disc3 className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-slate-200 tracking-tight">
+            <h3 className="text-sm font-semibold text-slate-200 tracking-tight group-hover:text-amber-400 transition">
               {config?.title || "Estoque de Insumos"}
             </h3>
             <p className="text-[11px] text-slate-400">
               {config?.subtitle || "Saldo de Filamentos"}
             </p>
           </div>
-        </div>
+        </Link>
 
         <div className="flex items-center gap-1.5">
           {config?.settings?.showWarningBadge !== false && hasLowSpools ? (
@@ -74,7 +75,7 @@ export function KpiFilamentStockCard({
       </div>
 
       {/* Main Metric */}
-      <div className="my-auto py-2 relative z-10">
+      <Link href="/filaments" className="my-auto py-2 relative z-10 block">
         <div className="flex items-baseline gap-2">
           <span className="text-3xl sm:text-4xl font-extrabold font-mono text-slate-100 tracking-tight">
             {totalWeightKg}
@@ -96,19 +97,14 @@ export function KpiFilamentStockCard({
             </span>
           )}
         </div>
-      </div>
+      </Link>
 
       {/* Footer Info */}
       <div className="pt-2 border-t border-[#263246]/60 flex items-center justify-between text-[11px] text-slate-400 font-mono relative z-10">
-        <div>
-          <span>Principal: </span>
-          <span className="text-slate-200">
-            {filaments.filter(f => f.material === "PLA").length} PLA • {filaments.filter(f => f.material === "PETG").length} PETG
-          </span>
-        </div>
-        <div className="text-[10px] text-slate-500">
-          Limite: {alertThresholdKg}kg
-        </div>
+        <span>Carretéis: <strong className="text-slate-200">{filaments.length}</strong></span>
+        <Link href="/filaments" className="text-amber-400 hover:underline">
+          Almoxarifado →
+        </Link>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import { LicensingService } from "./licensing.service.js";
 import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
 import type { AuthenticatedUser } from "../auth/interfaces/authenticated-user.interface.js";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard.js";
+import { OptionalJwtAuthGuard } from "../auth/guards/optional-jwt-auth.guard.js";
 
 export class ActivateKeyDto {
   @ApiProperty({ example: "CTRL-FARM-9923-B85E-04F5", description: "Chave RSA oficial de ativação" })
@@ -70,6 +71,7 @@ export class LicensingController {
   constructor(private readonly licensingService: LicensingService) {}
 
   @Get("status")
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: "Consulta o status da licença ativa, plano e recursos liberados" })
   getStatus(@Req() req: any, @Query("force") force?: string) {
     const user = req.user as AuthenticatedUser | undefined;
@@ -78,6 +80,7 @@ export class LicensingController {
   }
 
   @Post("revalidate")
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: "Revalida em tempo real o status da assinatura e pagamento com o ADM Gerente" })
   revalidate(@Req() req: any) {
     const user = req.user as AuthenticatedUser | undefined;
@@ -101,6 +104,7 @@ export class LicensingController {
   }
 
   @Post("activate")
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: "Ativa uma nova chave de licença associando à conta do usuário" })
   activate(@Body() dto: ActivateKeyDto, @Req() req: any) {
     const user = req.user as AuthenticatedUser | undefined;
