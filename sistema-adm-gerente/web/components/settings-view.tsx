@@ -15,6 +15,12 @@ import {
   ExternalLink,
   Save,
   Zap,
+  UserCheck,
+  Lock,
+  Mail,
+  Shield,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 interface GatewayConfig {
@@ -43,7 +49,7 @@ interface SystemSettingsData {
 }
 
 export function SettingsView() {
-  const [activeSection, setActiveSection] = useState<"gateways" | "general" | "transactions" | "rsa">("gateways");
+  const [activeSection, setActiveSection] = useState<"gateways" | "general" | "admin" | "transactions" | "rsa">("gateways");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -63,6 +69,36 @@ export function SettingsView() {
     privacyPolicyUrl: "",
   });
 
+  // Admin User Profile State
+  const [adminProfile, setAdminProfile] = useState<{
+    id: string;
+    name: string;
+    username: string;
+    email: string;
+    role: string;
+    lastLoginAt?: string | null;
+    createdAt?: string;
+  }>({
+    id: "",
+    name: "",
+    username: "",
+    email: "",
+    role: "OWNER",
+  });
+
+  // Password Change State
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [checkingAll, setCheckingAll] = useState(false);
+  const [checkResult, setCheckResult] = useState<any>(null);
+
   // Gateways State
   const [gateways, setGateways] = useState<GatewayConfig[]>([]);
   const [selectedGateway, setSelectedGateway] = useState<string>("MERCADO_PAGO");
@@ -77,10 +113,11 @@ export function SettingsView() {
     async function loadAll() {
       setLoading(true);
       try {
-        const [settRes, gwRes, txRes] = await Promise.allSettled([
+        const [settRes, gwRes, txRes, meRes] = await Promise.allSettled([
           fetch("/api/proxy/settings"),
           fetch("/api/proxy/settings/gateways"),
           fetch("/api/proxy/payments/transactions"),
+          fetch("/api/proxy/auth/me"),
         ]);
 
         if (settRes.status === "fulfilled" && settRes.value.ok) {
@@ -108,6 +145,19 @@ export function SettingsView() {
         if (txRes.status === "fulfilled" && txRes.value.ok) {
           const txs = await txRes.value.json();
           setTransactions(Array.isArray(txs) ? txs : []);
+        }
+
+        if (meRes.status === "fulfilled" && meRes.value.ok) {
+          const me = await meRes.value.json();
+          setAdminProfile({
+            id: me.id || "",
+            name: me.name || "",
+            username: me.username || "",
+            email: me.email || "",
+            role: me.role || "OWNER",
+            lastLoginAt: me.lastLoginAt,
+            createdAt: me.createdAt,
+          });
         }
       } catch (err) {
         console.error("Erro ao carregar configurações:", err);
@@ -137,6 +187,116 @@ export function SettingsView() {
       setNotification({ type: "error", text: err.message || "Erro ao salvar." });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSaveAdminProfile(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingProfile(true);
+    setNotification(null);
+    try {
+      const res = await fetch("/api/proxy/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: adminProfile.name,
+          username: adminProfile.username,
+          email: adminProfile.email,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Falha ao atualizar perfil do administrador.");
+      setNotification({ type: "success", text: "Perfil do Administrador Geral atualizado com sucesso!" });
+      setTimeout(() => setNotification(null), 4000);
+    } catch (err: any) {
+      setNotification({ type: "error", text: err.message || "Erro ao salvar perfil." });
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!passwordForm.currentPassword) {
+      setNotification({ type: "error", text: "Informe a senha atual." });
+      return;
+    }
+    if (passwordForm.newPassword.length < 6) {
+      setNotification({ type: "error", text: "A nova senha deve ter no mínimo 6 caracteres." });
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setNotification({ type: "error", text: "A confirmação da senha não coincide com a nova senha." });
+      return;
+    }
+
+    setSavingPassword(true);
+    setNotification(null);
+    try {
+      const res = await fetch("/api/proxy/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Falha ao alterar senha.");
+      setNotification({
+        type: "success",
+        text: "Senha alterada com sucesso! Utilize suas novas credenciais no próximo login.",
+      });
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setTimeout(() => setNotification(null), 5000);
+    } catch (err: any) {
+      setNotification({ type: "error", text: err.message || "Erro ao alterar senha." });
+    } finally {
+      setSavingPassword(false);
+    }
+  }
+
+  async function handleTestForgotPassword() {
+    if (!adminProfile.email) {
+      setNotification({ type: "error", text: "Cadastre um e-mail de recuperação primeiro." });
+      return;
+    }
+    setNotification(null);
+    try {
+      const res = await fetch("/api/proxy/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminProfile.email }),
+      });
+      const data = await res.json();
+      setNotification({
+        type: "success",
+        text: data.message || `Instruções de recuperação enviadas para ${adminProfile.email}`,
+      });
+      setTimeout(() => setNotification(null), 5000);
+    } catch (err: any) {
+      setNotification({ type: "error", text: "Erro ao solicitar recuperação." });
+    }
+  }
+
+  async function handleCheckAllFirebaseAndSubscriptions() {
+    setCheckingAll(true);
+    setNotification(null);
+    try {
+      const res = await fetch("/api/proxy/subscriptions/check-all", {
+        method: "POST",
+      });
+      const data = await res.json();
+      setCheckResult(data);
+      setNotification({
+        type: "success",
+        text: `Checagem concluída! ${data.dueResults?.total || 0} assinaturas analisadas, ${data.activeLicensesSynced || 0} chaves sincronizadas com o Firebase.`,
+      });
+      setTimeout(() => setNotification(null), 6000);
+    } catch (err: any) {
+      setNotification({ type: "error", text: "Falha na checagem geral de assinaturas e Firebase." });
+    } finally {
+      setCheckingAll(false);
     }
   }
 
@@ -272,6 +432,19 @@ export function SettingsView() {
         >
           <Building2 className="h-4 w-4" />
           <span>Dados da Empresa & Regras Globais</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSection("admin")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 font-bold transition ${
+            activeSection === "admin"
+              ? "bg-[#00df81] text-slate-950 shadow-md shadow-emerald-500/20"
+              : "bg-[#0c1425] text-slate-300 hover:text-white border border-[#1b263b]"
+          }`}
+        >
+          <UserCheck className="h-4 w-4" />
+          <span>Administrador Geral & Segurança</span>
         </button>
 
         <button
@@ -803,6 +976,29 @@ export function SettingsView() {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-300">URL dos Termos de Uso (opcional)</label>
+              <input
+                type="url"
+                value={settings.termsOfServiceUrl}
+                onChange={(e) => setSettings({ ...settings, termsOfServiceUrl: e.target.value })}
+                placeholder="https://ctrlfarm.com.br/termos"
+                className="h-10 w-full rounded-xl border border-[#1b263b] bg-[#091122] px-3 text-white outline-none focus:border-[#00df81]"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-300">URL da Política de Privacidade (opcional)</label>
+              <input
+                type="url"
+                value={settings.privacyPolicyUrl}
+                onChange={(e) => setSettings({ ...settings, privacyPolicyUrl: e.target.value })}
+                placeholder="https://ctrlfarm.com.br/privacidade"
+                className="h-10 w-full rounded-xl border border-[#1b263b] bg-[#091122] px-3 text-white outline-none focus:border-[#00df81]"
+              />
+            </div>
+          </div>
+
           <div className="border-t border-[#1b263b] pt-4 space-y-4">
             <h4 className="font-bold text-white text-sm">Regras Globais de Licenciamento & Automação</h4>
 
@@ -878,6 +1074,264 @@ export function SettingsView() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* SEÇÃO: ADMINISTRADOR GERAL & SEGURANÇA */}
+      {activeSection === "admin" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* CARD 1: PERFIL DO ADMINISTRADOR GERAL */}
+            <div className="lg:col-span-2 rounded-2xl border border-[#1b263b] bg-[#0c1425] p-6 shadow-xl space-y-5 text-xs">
+              <div className="border-b border-[#1b263b] pb-3 flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <UserCheck className="h-5 w-5 text-[#00df81]" />
+                    <span>Perfil do Administrador Geral (Master)</span>
+                  </h3>
+                  <p className="text-slate-400 text-xs mt-0.5">
+                    Gerencie suas informações de acesso, nome de exibição e e-mail para recuperação de senha.
+                  </p>
+                </div>
+                <span className="rounded-lg border border-emerald-500/30 bg-emerald-950/40 px-2.5 py-1 text-[11px] font-bold text-emerald-400 uppercase">
+                  {adminProfile.role || "OWNER"}
+                </span>
+              </div>
+
+              <form onSubmit={handleSaveAdminProfile} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-300">Nome Completo</label>
+                    <input
+                      type="text"
+                      value={adminProfile.name}
+                      onChange={(e) => setAdminProfile({ ...adminProfile, name: e.target.value })}
+                      placeholder="Administrador Geral"
+                      className="h-10 w-full rounded-xl border border-[#1b263b] bg-[#091122] px-3 text-white outline-none focus:border-[#00df81]"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-300">Nome de Usuário (Login)</label>
+                    <input
+                      type="text"
+                      value={adminProfile.username}
+                      onChange={(e) => setAdminProfile({ ...adminProfile, username: e.target.value })}
+                      placeholder="Administrador"
+                      className="h-10 w-full rounded-xl border border-[#1b263b] bg-[#091122] px-3 font-mono text-white outline-none focus:border-[#00df81]"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300 flex items-center justify-between">
+                    <span>E-mail para Acesso & Recuperação de Senha *</span>
+                    <span className="text-[11px] text-slate-400">Usado para redefinição segura de credenciais</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={adminProfile.email}
+                      onChange={(e) => setAdminProfile({ ...adminProfile, email: e.target.value })}
+                      placeholder="admin@ctrlfarm.com.br"
+                      className="h-10 w-full rounded-xl border border-[#1b263b] bg-[#091122] px-3 pl-9 text-white outline-none focus:border-[#00df81]"
+                      required
+                    />
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[#1b263b]">
+                  <div className="text-[11px] text-slate-400">
+                    {adminProfile.lastLoginAt ? (
+                      <span>Último login registrado: {new Date(adminProfile.lastLoginAt).toLocaleString("pt-BR")}</span>
+                    ) : (
+                      <span>Usuário com permissão irrestrita ao ecossistema CTRL-Farm</span>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={savingProfile}
+                    className="flex items-center gap-2 rounded-xl bg-[#00df81] px-5 py-2 text-xs font-bold text-slate-950 hover:bg-[#1fe28c] transition shadow-md shadow-emerald-500/20 disabled:opacity-50"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>{savingProfile ? "Salvando..." : "Salvar Perfil do Administrador"}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* CARD 2: RECUPERAÇÃO DE CONTA */}
+            <div className="rounded-2xl border border-[#1b263b] bg-[#0c1425] p-6 shadow-xl space-y-4 text-xs">
+              <div className="border-b border-[#1b263b] pb-3">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-sky-400" />
+                  <span>Recuperação de Senha</span>
+                </h3>
+                <p className="text-slate-400 text-xs mt-0.5">
+                  Recuperação em caso de esquecimento da senha mestra.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-sky-500/20 bg-sky-950/20 p-3.5 space-y-2 text-slate-300">
+                <p className="font-semibold text-sky-300 flex items-center gap-1.5">
+                  <Mail className="h-4 w-4" />
+                  <span>E-mail Atual de Recuperação:</span>
+                </p>
+                <p className="font-mono text-white text-xs break-all bg-[#070b14] p-2 rounded-lg border border-[#1b263b]">
+                  {adminProfile.email || "Nenhum e-mail configurado"}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Ao solicitar redefinição, instruções criptografadas são emitidas diretamente para este destinatário.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleTestForgotPassword}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-sky-500/40 bg-sky-950/30 px-4 py-2.5 font-bold text-sky-300 hover:bg-sky-900/40 transition"
+              >
+                <Mail className="h-4 w-4" />
+                <span>Testar Envio de Recuperação</span>
+              </button>
+            </div>
+          </div>
+
+          {/* GRID 2: ALTERAÇÃO DE SENHA & SINCRONIZAÇÃO GERAL FIREBASE */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* ALTERAÇÃO DE SENHA */}
+            <form onSubmit={handleChangePassword} className="rounded-2xl border border-[#1b263b] bg-[#0c1425] p-6 shadow-xl space-y-4 text-xs">
+              <div className="border-b border-[#1b263b] pb-3">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-amber-400" />
+                  <span>Alteração de Senha Master</span>
+                </h3>
+                <p className="text-slate-400 text-xs mt-0.5">
+                  A senha é protegida com criptografia BCrypt de alta segurança (10 salt rounds).
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-300">Senha Atual *</label>
+                  <div className="relative">
+                    <input
+                      type={showCurrentPassword ? "text" : "password"}
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                      placeholder="••••••••"
+                      className="h-10 w-full rounded-xl border border-[#1b263b] bg-[#091122] px-3 pr-10 text-white outline-none focus:border-[#00df81]"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                    >
+                      {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-300">Nova Senha (Mínimo 6) *</label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                        placeholder="••••••••"
+                        className="h-10 w-full rounded-xl border border-[#1b263b] bg-[#091122] px-3 pr-10 text-white outline-none focus:border-[#00df81]"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-300">Confirmar Nova Senha *</label>
+                    <input
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                      placeholder="••••••••"
+                      className="h-10 w-full rounded-xl border border-[#1b263b] bg-[#091122] px-3 text-white outline-none focus:border-[#00df81]"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-3 border-t border-[#1b263b]">
+                <button
+                  type="submit"
+                  disabled={savingPassword}
+                  className="flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 px-5 py-2 font-bold transition shadow-md shadow-amber-500/20 disabled:opacity-50"
+                >
+                  <Lock className="h-4 w-4" />
+                  <span>{savingPassword ? "Alterando..." : "Alterar Senha do Administrador"}</span>
+                </button>
+              </div>
+            </form>
+
+            {/* ROTINA DE CHECAGEM GERAL ASSINATURAS & FIREBASE */}
+            <div className="rounded-2xl border border-[#1b263b] bg-[#0c1425] p-6 shadow-xl space-y-4 text-xs">
+              <div className="border-b border-[#1b263b] pb-3">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5 text-[#00df81]" />
+                  <span>Sincronização & Validação Firebase</span>
+                </h3>
+                <p className="text-slate-400 text-xs mt-0.5">
+                  Desacoplamento em nuvem: Chaves criadas, pausadas, alteradas ou canceladas são registradas no Firebase. O CTRL-Farm consulta e opera continuamente mesmo com o ADM fechado.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/20 p-4 space-y-2 text-slate-300">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Alta Disponibilidade & Continuidade Garantida</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-slate-300">
+                  Ao abrir o Sistema ADM, a checagem automática verifica os pagamentos das assinaturas e as datas de validade das chaves, aplicando as alterações necessárias tanto no banco local quanto no Firebase Firestore.
+                </p>
+              </div>
+
+              {checkResult && (
+                <div className="rounded-xl border border-[#1b263b] bg-[#091122] p-3.5 space-y-2 font-mono text-[11px]">
+                  <p className="text-emerald-400 font-bold flex items-center gap-1.5">
+                    <span>✅</span>
+                    <span>Relatório da Última Checagem:</span>
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-slate-300">
+                    <div>Total de Assinaturas: <strong className="text-white">{checkResult.dueResults?.total ?? 0}</strong></div>
+                    <div>Renovadas/Pagas: <strong className="text-emerald-400">{checkResult.dueResults?.renewed ?? 0}</strong></div>
+                    <div>Suspensas: <strong className="text-rose-400">{checkResult.dueResults?.suspended ?? 0}</strong></div>
+                    <div>Chaves no Firebase: <strong className="text-[#00df81]">{checkResult.activeLicensesSynced ?? 0}</strong></div>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                disabled={checkingAll}
+                onClick={handleCheckAllFirebaseAndSubscriptions}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#00df81] px-5 py-2.5 font-bold text-slate-950 hover:bg-[#1fe28c] transition shadow-md shadow-emerald-500/20 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${checkingAll ? "animate-spin" : ""}`} />
+                <span>{checkingAll ? "Executando Checagem..." : "Verificar Pagamentos e Sincronizar Chaves Firebase Agora"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* SEÇÃO 3: TRANSAÇÕES & WEBHOOKS RECEBIDOS */}

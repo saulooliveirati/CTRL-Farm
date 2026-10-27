@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service.js";
 import { CtrlFarmNotifierService } from "../integrations/ctrlfarm-notifier.service.js";
+import { FirebaseLicenseSyncService } from "../firebase/firebase-license-sync.service.js";
 import {
   BillingCycleEnum,
   CreateSubscriptionDto,
@@ -9,11 +10,38 @@ import {
 } from "./dto/create-subscription.dto.js";
 
 @Injectable()
-export class SubscriptionsService {
+export class SubscriptionsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(SubscriptionsService.name);
+  private checkInterval: NodeJS.Timeout | null = null;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly ctrlFarmNotifier: CtrlFarmNotifierService,
+    private readonly firebaseLicenseSync: FirebaseLicenseSyncService,
   ) {}
+
+  onModuleInit() {
+    // Checagem imediata 4 segundos após inicialização do Sistema ADM
+    setTimeout(() => {
+      this.checkAllSubscriptionsAndLicenses("Startup do Sistema ADM Gerente")
+        .catch((err) => this.logger.warn(`Falha na checagem inicial de assinaturas: ${err.message}`));
+    }, 4000);
+
+    // Agendador de rotina a cada 1 hora
+    this.checkInterval = setInterval(() => {
+      this.checkAllSubscriptionsAndLicenses("Agendador Automático ADM")
+        .catch((err) => this.logger.warn(`Falha na checagem periódica de assinaturas: ${err.message}`));
+    }, 60 * 60 * 1000);
+
+    this.logger.log("Rotina de checagem de pagamentos e sincronização Firebase ativada.");
+  }
+
+  onModuleDestroy() {
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval);
+      this.checkInterval = null;
+    }
+  }
 
   async findAll(query?: { clientId?: string; status?: string; page?: number; limit?: number }) {
     const page = Math.max(1, query?.page ?? 1);
@@ -134,6 +162,19 @@ export class SubscriptionsService {
       },
     });
 
+    // Sincroniza nova assinatura com Firebase Firestore
+    await this.firebaseLicenseSync.publishSubscription({
+      id: subscription.id,
+      clientId: subscription.clientId,
+      clientName: client.name,
+      planId: plan.id,
+      planCode: plan.code,
+      status: subscription.status,
+      billingCycle: subscription.billingCycle,
+      nextBillingDate: subscription.nextBillingDate,
+      paymentStatus: "PAID",
+    });
+
     return subscription;
   }
 
@@ -149,7 +190,20 @@ export class SubscriptionsService {
         ...(dto.paymentMethod ? { paymentMethod: dto.paymentMethod } : {}),
         ...(dto.status === SubscriptionStatusEnum.CANCELADO ? { cancelledAt: new Date() } : {}),
       },
-      include: { licenses: true },
+      include: { licenses: true, client: true, plan: true },
+    });
+
+    // Sincroniza atualização da assinatura com Firebase
+    await this.firebaseLicenseSync.publishSubscription({
+      id: subscription.id,
+      clientId: subscription.clientId,
+      clientName: subscription.client?.name,
+      planId: subscription.planId,
+      planCode: subscription.plan?.code,
+      status: subscription.status,
+      billingCycle: subscription.billingCycle,
+      nextBillingDate: subscription.nextBillingDate,
+      paymentStatus: subscription.status === "ATIVO" ? "PAID" : "PENDING",
     });
 
     if (dto.status === "SUSPENSO" || (dto.status as any) === SubscriptionStatusEnum.SUSPENSO) {
@@ -158,10 +212,16 @@ export class SubscriptionsService {
         data: { status: "SUSPENDED" },
       });
       for (const lic of subscription.licenses) {
-        await this.ctrlFarmNotifier.notifyLicenseSuspension(
-          lic.activationKey,
-          "Assinatura suspensa pelo administrador no ADM Gerente."
-        );
+        await Promise.allSettled([
+          this.ctrlFarmNotifier.notifyLicenseSuspension(
+            lic.activationKey,
+            "Assinatura suspensa pelo administrador no ADM Gerente.",
+          ),
+          this.firebaseLicenseSync.publishSuspension(
+            lic.activationKey,
+            "Assinatura suspensa pelo administrador no ADM Gerente.",
+          ),
+        ]);
       }
     } else if (dto.status === "ATIVO" || (dto.status as any) === SubscriptionStatusEnum.ATIVO) {
       await this.prisma.license.updateMany({
@@ -169,7 +229,42 @@ export class SubscriptionsService {
         data: { status: "ACTIVE" },
       });
       for (const lic of subscription.licenses) {
-        await this.ctrlFarmNotifier.notifyLicenseActivation(lic.activationKey, lic.expiresAt.toISOString());
+        await Promise.allSettled([
+          this.ctrlFarmNotifier.notifyLicenseActivation(lic.activationKey, lic.expiresAt.toISOString()),
+          this.firebaseLicenseSync.publishLicense({
+            id: lic.id,
+            key: lic.activationKey,
+            clientId: subscription.clientId,
+            clientName: subscription.client?.name,
+            planCode: subscription.plan?.code || "PRO",
+            status: "ACTIVE",
+            expiresAt: lic.expiresAt,
+            allowedFeatures: lic.allowedFeatures,
+            action: "ACTIVATE",
+          }),
+        ]);
+      }
+    } else if (dto.status === "PAUSADO" || (dto.status as any) === SubscriptionStatusEnum.PAUSADO) {
+      await this.prisma.license.updateMany({
+        where: { subscriptionId: id },
+        data: { status: "PAUSED" },
+      });
+      for (const lic of subscription.licenses) {
+        await Promise.allSettled([
+          this.ctrlFarmNotifier.notifyLicenseSuspension(lic.activationKey, "Assinatura pausada pelo administrador."),
+          this.firebaseLicenseSync.publishPause(lic.activationKey, "Assinatura pausada pelo administrador."),
+        ]);
+      }
+    } else if (dto.status === "CANCELADO" || (dto.status as any) === SubscriptionStatusEnum.CANCELADO) {
+      await this.prisma.license.updateMany({
+        where: { subscriptionId: id },
+        data: { status: "REVOKED" },
+      });
+      for (const lic of subscription.licenses) {
+        await Promise.allSettled([
+          this.ctrlFarmNotifier.notifyLicenseSuspension(lic.activationKey, "Assinatura cancelada pelo administrador."),
+          this.firebaseLicenseSync.publishRevocation(lic.activationKey, "Assinatura cancelada pelo administrador."),
+        ]);
       }
     }
 
@@ -215,6 +310,45 @@ export class SubscriptionsService {
         nextBillingDate: currentNext,
         paymentHistory: history,
       },
+      include: { client: true, plan: true, licenses: true },
+    });
+
+    // Atualiza licenças vinculadas com nova data de validade no PostgreSQL e no Firebase
+    for (const lic of sub.licenses) {
+      await this.prisma.license.update({
+        where: { id: lic.id },
+        data: {
+          status: "ACTIVE",
+          expiresAt: currentNext,
+        },
+      });
+      await this.firebaseLicenseSync.publishLicense({
+        id: lic.id,
+        key: lic.activationKey,
+        clientId: sub.clientId,
+        clientName: sub.client?.name,
+        planCode: sub.plan?.code || "PRO",
+        planName: sub.plan?.name,
+        status: "ACTIVE",
+        expiresAt: currentNext,
+        allowedFeatures: lic.allowedFeatures,
+        action: "RENEW",
+      });
+      await this.ctrlFarmNotifier.notifyLicenseActivation(lic.activationKey, currentNext.toISOString());
+    }
+
+    // Sincroniza renovação da assinatura no Firebase Firestore
+    await this.firebaseLicenseSync.publishSubscription({
+      id: updated.id,
+      clientId: updated.clientId,
+      clientName: sub.client?.name,
+      planId: updated.planId,
+      planCode: sub.plan?.code,
+      status: updated.status,
+      billingCycle: updated.billingCycle,
+      nextBillingDate: updated.nextBillingDate,
+      lastPaymentDate: new Date(),
+      paymentStatus: "PAID",
     });
 
     await this.prisma.auditLog.create({
@@ -239,7 +373,7 @@ export class SubscriptionsService {
         status: status as any,
         ...(status === "CANCELADO" ? { cancelledAt: new Date() } : {}),
       },
-      include: { licenses: true },
+      include: { licenses: true, client: true, plan: true },
     });
 
     if (status === "ATIVO") {
@@ -248,7 +382,20 @@ export class SubscriptionsService {
         data: { status: "ACTIVE" },
       });
       for (const lic of updated.licenses) {
-        await this.ctrlFarmNotifier.notifyLicenseActivation(lic.activationKey, lic.expiresAt.toISOString());
+        await Promise.allSettled([
+          this.ctrlFarmNotifier.notifyLicenseActivation(lic.activationKey, lic.expiresAt.toISOString()),
+          this.firebaseLicenseSync.publishLicense({
+            id: lic.id,
+            key: lic.activationKey,
+            clientId: existing.clientId,
+            clientName: existing.client?.name,
+            planCode: existing.plan?.code || "PRO",
+            status: "ACTIVE",
+            expiresAt: lic.expiresAt,
+            allowedFeatures: lic.allowedFeatures,
+            action: "ACTIVATE",
+          }),
+        ]);
       }
     } else if (status === "SUSPENSO") {
       // SUSPENSÃO IMEDIATA: Suspende a chave de ativação e envia validação imediata ao CTRL-Farm
@@ -257,23 +404,65 @@ export class SubscriptionsService {
         data: { status: "SUSPENDED" },
       });
       for (const lic of updated.licenses) {
-        await this.ctrlFarmNotifier.notifyLicenseSuspension(
-          lic.activationKey,
-          "Assinatura suspensa pelo administrador no Sistema ADM Gerente."
-        );
+        await Promise.allSettled([
+          this.ctrlFarmNotifier.notifyLicenseSuspension(
+            lic.activationKey,
+            "Assinatura suspensa pelo administrador no Sistema ADM Gerente.",
+          ),
+          this.firebaseLicenseSync.publishSuspension(
+            lic.activationKey,
+            "Assinatura suspensa pelo administrador no Sistema ADM Gerente.",
+          ),
+        ]);
       }
-    } else if (status === "PAUSADO" || status === "CANCELADO") {
+    } else if (status === "PAUSADO") {
       await this.prisma.license.updateMany({
         where: { subscriptionId: id },
-        data: { status: status === "PAUSADO" ? "PAUSED" : "REVOKED" },
+        data: { status: "PAUSED" },
       });
       for (const lic of updated.licenses) {
-        await this.ctrlFarmNotifier.notifyLicenseSuspension(
-          lic.activationKey,
-          `Assinatura ${status.toLowerCase()} no Sistema ADM Gerente.`
-        );
+        await Promise.allSettled([
+          this.ctrlFarmNotifier.notifyLicenseSuspension(
+            lic.activationKey,
+            `Assinatura pausada no Sistema ADM Gerente.`,
+          ),
+          this.firebaseLicenseSync.publishPause(
+            lic.activationKey,
+            `Assinatura pausada no Sistema ADM Gerente.`,
+          ),
+        ]);
+      }
+    } else if (status === "CANCELADO") {
+      await this.prisma.license.updateMany({
+        where: { subscriptionId: id },
+        data: { status: "REVOKED" },
+      });
+      for (const lic of updated.licenses) {
+        await Promise.allSettled([
+          this.ctrlFarmNotifier.notifyLicenseSuspension(
+            lic.activationKey,
+            `Assinatura cancelada no Sistema ADM Gerente.`,
+          ),
+          this.firebaseLicenseSync.publishRevocation(
+            lic.activationKey,
+            `Assinatura cancelada no Sistema ADM Gerente.`,
+          ),
+        ]);
       }
     }
+
+    // Sincroniza status no Firebase Firestore
+    await this.firebaseLicenseSync.publishSubscription({
+      id: updated.id,
+      clientId: updated.clientId,
+      clientName: existing.client?.name,
+      planId: updated.planId,
+      planCode: existing.plan?.code,
+      status: updated.status,
+      billingCycle: updated.billingCycle,
+      nextBillingDate: updated.nextBillingDate,
+      paymentStatus: updated.status === "ATIVO" ? "PAID" : "PENDING",
+    });
 
     await this.prisma.auditLog.create({
       data: {
@@ -395,9 +584,36 @@ export class SubscriptionsService {
               expiresAt: currentNext,
             },
           });
+          // Sincroniza com Firebase Firestore
+          await this.firebaseLicenseSync.publishLicense({
+            id: lic.id,
+            key: lic.activationKey,
+            clientId: sub.clientId,
+            clientName: sub.client?.name,
+            planCode: sub.plan?.code || "PRO",
+            planName: sub.plan?.name,
+            status: "ACTIVE",
+            expiresAt: currentNext,
+            allowedFeatures: lic.allowedFeatures,
+            action: "RENEW",
+          });
           // Notifica CTRL-Farm da renovação
           await this.ctrlFarmNotifier.notifyLicenseActivation(lic.activationKey, currentNext.toISOString());
         }
+
+        // Sincroniza renovação da assinatura no Firebase Firestore
+        await this.firebaseLicenseSync.publishSubscription({
+          id: sub.id,
+          clientId: sub.clientId,
+          clientName: sub.client?.name,
+          planId: sub.planId,
+          planCode: sub.plan?.code,
+          status: "ATIVO",
+          billingCycle: sub.billingCycle,
+          nextBillingDate: currentNext,
+          lastPaymentDate: now,
+          paymentStatus: "PAID",
+        });
 
         await this.prisma.auditLog.create({
           data: {
@@ -425,7 +641,7 @@ export class SubscriptionsService {
           },
         });
 
-        // Trava todas as licenças vinculadas e manda validação imediata ao CTRL-Farm para suspensão do serviço
+        // Trava todas as licenças vinculadas e manda validação imediata ao CTRL-Farm e ao Firebase
         for (const lic of sub.licenses) {
           await this.prisma.license.update({
             where: { id: lic.id },
@@ -434,12 +650,31 @@ export class SubscriptionsService {
             },
           });
 
-          // DISPARO IMEDIATO DE SUSPENSÃO PARA O CTRL-FARM
-          await this.ctrlFarmNotifier.notifyLicenseSuspension(
-            lic.activationKey,
-            "Vencimento do ciclo de cobrança atingido sem confirmação de pagamento."
-          );
+          // DISPARO IMEDIATO DE SUSPENSÃO PARA O CTRL-FARM (HTTP + Firebase)
+          await Promise.allSettled([
+            this.ctrlFarmNotifier.notifyLicenseSuspension(
+              lic.activationKey,
+              "Vencimento do ciclo de cobrança atingido sem confirmação de pagamento.",
+            ),
+            this.firebaseLicenseSync.publishSuspension(
+              lic.activationKey,
+              "Vencimento do ciclo de cobrança atingido sem confirmação de pagamento.",
+            ),
+          ]);
         }
+
+        // Sincroniza status no Firebase Firestore
+        await this.firebaseLicenseSync.publishSubscription({
+          id: sub.id,
+          clientId: sub.clientId,
+          clientName: sub.client?.name,
+          planId: sub.planId,
+          planCode: sub.plan?.code,
+          status: "SUSPENSO",
+          billingCycle: sub.billingCycle,
+          nextBillingDate: sub.nextBillingDate,
+          paymentStatus: "PENDING",
+        });
 
         await this.prisma.auditLog.create({
           data: {
@@ -513,7 +748,32 @@ export class SubscriptionsService {
         });
         // Notifica o CTRL-Farm para liberação imediata
         await this.ctrlFarmNotifier.notifyLicenseActivation(lic.activationKey, currentNext.toISOString());
+        // Sincroniza com o Firebase Firestore
+        await this.firebaseLicenseSync.publishLicense({
+          id: lic.id,
+          key: lic.activationKey,
+          clientId: sub.clientId,
+          clientName: sub.client?.name,
+          planCode: sub.plan?.code || "PRO",
+          planName: sub.plan?.name,
+          status: "ACTIVE",
+          expiresAt: currentNext,
+          allowedFeatures: lic.allowedFeatures,
+          action: "ACTIVATE",
+        });
       }
+
+      await this.firebaseLicenseSync.publishSubscription({
+        id: sub.id,
+        clientId: sub.clientId,
+        clientName: sub.client?.name,
+        planId: sub.planId,
+        planCode: sub.plan?.code,
+        status: "ATIVO",
+        billingCycle: sub.billingCycle,
+        nextBillingDate: currentNext,
+        paymentStatus: "PAID",
+      });
 
       return {
         success: true,
@@ -526,6 +786,77 @@ export class SubscriptionsService {
       success: false,
       status: sub.status,
       message: "Nenhum pagamento confirmado foi identificado até o momento.",
+    };
+  }
+
+  /**
+   * Checagem abrangente de assinaturas, pagamentos e sincronização total com o Firebase Firestore
+   */
+  async checkAllSubscriptionsAndLicenses(adminUsername?: string) {
+    this.logger.log(
+      `Iniciando checagem global de assinaturas, pagamentos e sincronização Firebase (Iniciado por: ${
+        adminUsername || "Sistema Automático"
+      })...`,
+    );
+
+    // 1. Processa assinaturas vencidas
+    const dueResults = await this.processDueSubscriptions(adminUsername);
+
+    // 2. Verifica licenças avulsas ou com prazo expirado
+    const now = new Date();
+    const expiredLicenses = await this.prisma.license.findMany({
+      where: {
+        status: "ACTIVE",
+        expiresAt: { lt: now },
+      },
+      include: { client: true, plan: true },
+    });
+
+    for (const lic of expiredLicenses) {
+      await this.prisma.license.update({
+        where: { id: lic.id },
+        data: { status: "EXPIRED" },
+      });
+      await Promise.allSettled([
+        this.ctrlFarmNotifier.notifyLicenseSuspension(lic.activationKey, "Validade da licença expirada."),
+        this.firebaseLicenseSync.publishSuspension(lic.activationKey, "Validade da licença expirada."),
+      ]);
+    }
+
+    // 3. Sincroniza todas as licenças ativas com o Firestore para garantia de alta disponibilidade
+    const activeLicenses = await this.prisma.license.findMany({
+      where: { status: "ACTIVE" },
+      include: { client: true, plan: true },
+    });
+
+    for (const lic of activeLicenses) {
+      await this.firebaseLicenseSync.publishLicense({
+        id: lic.id,
+        key: lic.activationKey,
+        clientId: lic.clientId,
+        clientName: lic.client?.name,
+        clientEmail: lic.client?.email,
+        planCode: lic.plan.code,
+        planName: lic.plan.name,
+        status: "ACTIVE",
+        expiresAt: lic.expiresAt,
+        maxPrinters: lic.plan.maxPrinters,
+        maxCompanies: lic.plan.maxCompanies,
+        allowedFeatures: lic.allowedFeatures,
+        action: "SYNC",
+      });
+    }
+
+    this.logger.log(
+      `Checagem concluída: ${dueResults.total} assinaturas analisadas (${dueResults.renewed} renovadas, ${dueResults.suspended} suspensas), ${expiredLicenses.length} licenças expiradas, ${activeLicenses.length} licenças sincronizadas com Firebase.`,
+    );
+
+    return {
+      success: true,
+      timestamp: new Date().toISOString(),
+      dueResults,
+      expiredLicensesCount: expiredLicenses.length,
+      activeLicensesSynced: activeLicenses.length,
     };
   }
 }

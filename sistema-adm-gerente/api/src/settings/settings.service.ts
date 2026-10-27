@@ -1,24 +1,68 @@
 import { Injectable, NotFoundException, Logger } from "@nestjs/common";
+import { IsBoolean, IsNumber, IsOptional, IsString, IsArray, IsObject } from "class-validator";
 import { PrismaService } from "../database/prisma.service.js";
 
 export class UpdateSystemSettingsDto {
+  @IsOptional()
+  @IsString()
   companyName?: string;
+
+  @IsOptional()
+  @IsString()
   tradeName?: string;
+
+  @IsOptional()
+  @IsString()
   document?: string;
+
+  @IsOptional()
+  @IsString()
   supportEmail?: string;
+
+  @IsOptional()
+  @IsString()
   supportPhone?: string;
+
+  @IsOptional()
+  @IsNumber()
   defaultOfflineGraceDays?: number;
+
+  @IsOptional()
+  @IsBoolean()
   autoGenerateLicenseOnPayment?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   autoRenewSubscription?: boolean;
+
+  @IsOptional()
+  @IsNumber()
   notifyExpiringLicensesDays?: number;
+
+  @IsOptional()
+  @IsString()
   termsOfServiceUrl?: string;
+
+  @IsOptional()
+  @IsString()
   privacyPolicyUrl?: string;
 }
 
 export class UpdateGatewayDto {
+  @IsOptional()
+  @IsBoolean()
   enabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   isSandbox?: boolean;
+
+  @IsOptional()
+  @IsObject()
   credentials?: Record<string, any>;
+
+  @IsOptional()
+  @IsArray()
   acceptedMethods?: string[];
 }
 
@@ -64,6 +108,8 @@ export class SettingsService {
         ...(dto.autoGenerateLicenseOnPayment !== undefined ? { autoGenerateLicenseOnPayment: dto.autoGenerateLicenseOnPayment } : {}),
         ...(dto.autoRenewSubscription !== undefined ? { autoRenewSubscription: dto.autoRenewSubscription } : {}),
         ...(dto.notifyExpiringLicensesDays !== undefined ? { notifyExpiringLicensesDays: dto.notifyExpiringLicensesDays } : {}),
+        ...(dto.termsOfServiceUrl !== undefined ? { termsOfServiceUrl: dto.termsOfServiceUrl?.trim() || null } : {}),
+        ...(dto.privacyPolicyUrl !== undefined ? { privacyPolicyUrl: dto.privacyPolicyUrl?.trim() || null } : {}),
       },
       create: {
         id: "default",

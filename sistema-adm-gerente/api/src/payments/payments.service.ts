@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service.js";
 import { LicensesService } from "../licenses/licenses.service.js";
 import { CtrlFarmNotifierService } from "../integrations/ctrlfarm-notifier.service.js";
+import { FirebaseLicenseSyncService } from "../firebase/firebase-license-sync.service.js";
 
 @Injectable()
 export class PaymentsService {
@@ -11,6 +12,7 @@ export class PaymentsService {
     private readonly prisma: PrismaService,
     private readonly licensesService: LicensesService,
     private readonly ctrlFarmNotifier: CtrlFarmNotifierService,
+    private readonly firebaseLicenseSync: FirebaseLicenseSyncService,
   ) {}
 
   /**
@@ -111,6 +113,20 @@ export class PaymentsService {
             status: "ATIVO",
             nextBillingDate: nextDate,
           },
+        });
+
+        // Sincroniza pagamento aprovado e renovação no Firebase Firestore
+        await this.firebaseLicenseSync.publishSubscription({
+          id: subscription.id,
+          clientId: subscription.clientId,
+          clientName: subscription.client?.name,
+          planId: subscription.planId,
+          planCode: subscription.plan?.code,
+          status: "ATIVO",
+          billingCycle: subscription.billingCycle,
+          nextBillingDate: nextDate,
+          lastPaymentDate: new Date(),
+          paymentStatus: "PAID",
         });
 
         // Verifica configuração se deve gerar/estender licença automaticamente

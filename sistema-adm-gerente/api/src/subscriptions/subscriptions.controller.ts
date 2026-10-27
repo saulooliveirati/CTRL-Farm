@@ -94,6 +94,12 @@ export class SubscriptionsController {
     return this.subscriptionsService.processDueSubscriptions(admin.username);
   }
 
+  @Post("check-all")
+  @ApiOperation({ summary: "Executa checagem geral de assinaturas, pagamentos e sincronização completa com Firebase" })
+  checkAll(@CurrentAdmin() admin: AuthenticatedAdmin) {
+    return this.subscriptionsService.checkAllSubscriptionsAndLicenses(admin.username);
+  }
+
   @Post(":id/verify-payment")
   @ApiOperation({ summary: "Verifica em tempo real se o pagamento da assinatura foi compensado" })
   verifyPayment(@Param("id") id: string, @CurrentAdmin() admin: AuthenticatedAdmin) {

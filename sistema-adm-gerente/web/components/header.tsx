@@ -61,10 +61,16 @@ export function AdminHeader({
             <span>Servidor de Licenças Online (4001)</span>
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl border border-[#1b263b] bg-[#0c1425] px-3 py-1.5 text-xs text-slate-300">
+          <button
+            type="button"
+            onClick={() => setActiveTab("settings")}
+            title="Gerenciar perfil e segurança do Administrador Geral"
+            className="flex items-center gap-2 rounded-xl border border-[#1b263b] bg-[#0c1425] px-3 py-1.5 text-xs text-slate-300 hover:border-[#00df81] hover:text-white transition cursor-pointer"
+          >
             <span className="h-2 w-2 rounded-full bg-[#00df81]" />
             <span className="font-semibold text-white">{adminUser?.name || "Administrador"}</span>
-          </div>
+            <span className="text-[10px] text-emerald-400">👤 Editar</span>
+          </button>
 
           <button
             type="button"

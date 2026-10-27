@@ -10,6 +10,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import { PrismaService } from "../database/prisma.service.js";
+import { FirebaseService } from "../firebase/firebase.service.js";
 import type { AuthenticatedUser } from "../auth/interfaces/authenticated-user.interface.js";
 
 export function canonicalJsonStringify(obj: any): string {
@@ -77,7 +78,33 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
   private admApiUrl: string = process.env.ADM_API_URL || "http://localhost:4001/api/v1";
   private syncCheckTimer: NodeJS.Timeout | null = null;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly firebase: FirebaseService,
+  ) {}
+
+  /**
+   * Consulta a chave de ativação diretamente no Firebase Firestore para validação de alta disponibilidade
+   */
+  async fetchLicenseFromFirebase(activationKey: string): Promise<any | null> {
+    const firestore = this.firebase.getFirestore();
+    if (!firestore) return null;
+
+    try {
+      const cleanKey = activationKey.trim().toUpperCase();
+      const docRef = firestore.collection("licenses").doc(cleanKey);
+      const snapshot = await docRef.get();
+      if (!snapshot.exists) {
+        return null;
+      }
+      return snapshot.data();
+    } catch (err: any) {
+      this.logger.warn(
+        `[Firebase Licensing] Erro ao consultar chave ${activationKey} no Firestore: ${err.message}`,
+      );
+      return null;
+    }
+  }
 
   onModuleInit() {
     this.initPaths();
@@ -488,11 +515,111 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
         status === "CANCELADO" ||
         status === "REVOKED";
 
-      if (forceOnlineCheck || isCurrentlyLocked) {
+      // 1. CONSULTA PRIORITÁRIA NO FIREBASE FIRESTORE (Desacoplamento e Alta Disponibilidade)
+      // Toda chave criada, pausada, alterada (mudança de plano) ou cancelada no ADM é registrada no Firebase.
+      // O CTRL-Farm consulta no Firebase, aplica a chave no sistema e realiza a ação definida.
+      // Se o Sistema ADM estiver fechado ou sem conexão, o CTRL-Farm NÃO é afetado.
+      try {
+        const fbLicense = await this.fetchLicenseFromFirebase(dbLicense.activationKey);
+        if (fbLicense) {
+          onlineCheckSuccess = true;
+          this.logger.log(
+            `[Firebase Licensing] Chave ${dbLicense.activationKey} verificada no Firestore. Status: ${fbLicense.status}, Plano: ${fbLicense.planCode}`,
+          );
+
+          if (
+            fbLicense.status === "PAUSED" ||
+            fbLicense.status === "PAUSADO" ||
+            fbLicense.status === "SUSPENDED" ||
+            fbLicense.status === "SUSPENSO" ||
+            fbLicense.status === "CANCELLED" ||
+            fbLicense.status === "CANCELADO" ||
+            fbLicense.status === "REVOKED" ||
+            fbLicense.active === false
+          ) {
+            status = fbLicense.status;
+            lockReason =
+              fbLicense.suspendedReason ||
+              `Acesso à chave de ativação foi ${fbLicense.status.toLowerCase()} no Firebase.`;
+            if (dbLicense.status !== status) {
+              await this.prisma.userLicense.update({
+                where: { id: dbLicense.id },
+                data: { status, lastValidatedAt: now },
+              });
+              if (this.currentLicense) {
+                this.currentLicense.status = status as any;
+                this.saveLicenseToCache(this.currentLicense);
+              }
+            }
+          } else if (fbLicense.status === "ACTIVE" || fbLicense.active === true) {
+            status = "ACTIVE";
+            const updateFields: any = {
+              status: "ACTIVE",
+              lastValidatedAt: now,
+            };
+
+            let changed = false;
+            if (fbLicense.planCode && fbLicense.planCode !== dbLicense.planCode) {
+              updateFields.planCode = fbLicense.planCode;
+              updateFields.planName = fbLicense.planName || fbLicense.planCode;
+              changed = true;
+            }
+            if (fbLicense.allowedFeatures) {
+              updateFields.allowedFeatures = fbLicense.allowedFeatures;
+              changed = true;
+            }
+            if (fbLicense.expiresAt) {
+              const fbExpires = new Date(fbLicense.expiresAt);
+              if (fbExpires.getTime() !== new Date(dbLicense.expiresAt).getTime()) {
+                updateFields.expiresAt = fbExpires;
+                changed = true;
+              }
+            }
+
+            if (dbLicense.status !== "ACTIVE" || changed) {
+              await this.prisma.userLicense.update({
+                where: { id: dbLicense.id },
+                data: updateFields,
+              });
+              dbLicense.status = "ACTIVE";
+              if (updateFields.planCode) dbLicense.planCode = updateFields.planCode;
+              if (updateFields.planName) dbLicense.planName = updateFields.planName;
+              if (updateFields.allowedFeatures) dbLicense.allowedFeatures = updateFields.allowedFeatures;
+              if (updateFields.expiresAt) dbLicense.expiresAt = updateFields.expiresAt;
+            }
+
+            if (this.currentLicense) {
+              this.currentLicense.status = "ACTIVE";
+              this.currentLicense.lastValidatedAt = now.toISOString();
+              if (fbLicense.planCode) {
+                this.currentLicense.plan = {
+                  ...this.currentLicense.plan,
+                  code: fbLicense.planCode,
+                  name: fbLicense.planName || fbLicense.planCode,
+                  maxPrinters: fbLicense.maxPrinters ?? this.currentLicense.plan.maxPrinters,
+                  maxCompanies: fbLicense.maxCompanies ?? this.currentLicense.plan.maxCompanies,
+                };
+              }
+              if (fbLicense.allowedFeatures) {
+                this.currentLicense.features = fbLicense.allowedFeatures;
+              }
+              if (fbLicense.expiresAt) {
+                this.currentLicense.expiresAt = fbLicense.expiresAt;
+              }
+              this.saveLicenseToCache(this.currentLicense);
+            }
+          }
+        }
+      } catch (fbErr: any) {
+        this.logger.warn(`[Firebase Licensing] Falha ao consultar Firestore: ${fbErr.message}`);
+      }
+
+      // 2. CONSULTA SECUNDÁRIA: Se Firebase não respondeu e forceOnlineCheck / isCurrentlyLocked estiver ativo, tenta ADM HTTP
+      if (!onlineCheckSuccess && (forceOnlineCheck || isCurrentlyLocked)) {
         try {
           const admRes = await fetch(
             `${this.admApiUrl}/licenses/check-status/${encodeURIComponent(dbLicense.activationKey)}`,
-            { cache: "no-store", signal: AbortSignal.timeout(6000) }
+            { cache: "no-store", signal: AbortSignal.timeout(4000) },
           );
           if (admRes.ok) {
             const admData = await admRes.json();
@@ -504,24 +631,24 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
                 if (dbLicense.status !== status) {
                   await this.prisma.userLicense.update({
                     where: { id: dbLicense.id },
-                    data: { status },
+                    data: { status, lastValidatedAt: now },
                   });
                 }
               } else if (admData.licenseStatus === "ACTIVE") {
                 status = "ACTIVE";
                 const nowValidated = new Date();
                 dbLicense.lastValidatedAt = nowValidated;
-                if (dbLicense.status !== "ACTIVE" || !dbLicense.lastValidatedAt) {
-                  await this.prisma.userLicense.update({
-                    where: { id: dbLicense.id },
-                    data: { status: "ACTIVE", lastValidatedAt: nowValidated },
-                  });
-                }
+                await this.prisma.userLicense.update({
+                  where: { id: dbLicense.id },
+                  data: { status: "ACTIVE", lastValidatedAt: nowValidated },
+                });
               }
             }
           }
         } catch (e: any) {
-          this.logger.warn(`Falha na checagem online com o ADM Gerente: ${e.message}. Verificando tolerância offline...`);
+          this.logger.debug(
+            `Servidor ADM Gerente inacessível/fechado: ${e.message}. Validado em modo resiliente via Firebase/Cache local.`,
+          );
         }
       }
 

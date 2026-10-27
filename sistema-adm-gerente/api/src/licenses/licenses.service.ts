@@ -215,12 +215,17 @@ export class LicensesService {
       id: license.id,
       key: activationKey,
       clientId: client.id,
+      clientName: client.name,
+      clientEmail: client.email,
       planCode: plan.code,
+      planName: plan.name,
       status: license.status,
       expiresAt: expiresAt,
       maxPrinters: plan.maxPrinters,
       maxCompanies: plan.maxCompanies,
       allowedFeatures: license.allowedFeatures,
+      subscriptionId: subscription.id,
+      action: "CREATE",
     });
 
     return {
@@ -303,11 +308,17 @@ export class LicensesService {
       data: { status: "REVOKED" },
     });
 
-    // Notificação IMEDIATA para CTRL-Farm travar o serviço
-    await this.ctrlFarmNotifier.notifyLicenseSuspension(
-      license.activationKey,
-      dto.reason || "Licença revogada pelo administrador."
-    );
+    // Notificação IMEDIATA para CTRL-Farm travar o serviço (HTTP + Firebase)
+    await Promise.allSettled([
+      this.ctrlFarmNotifier.notifyLicenseSuspension(
+        license.activationKey,
+        dto.reason || "Licença revogada pelo administrador.",
+      ),
+      this.firebaseLicenseSync.publishRevocation(
+        license.activationKey,
+        dto.reason || "Licença revogada pelo administrador.",
+      ),
+    ]);
 
     await this.prisma.auditLog.create({
       data: {
@@ -359,6 +370,23 @@ export class LicensesService {
       include: { client: true, plan: true },
     });
 
+    // Sincroniza atualização de plano / features / validade no Firebase Firestore
+    await this.firebaseLicenseSync.publishLicense({
+      id: updated.id,
+      key: updated.activationKey,
+      clientId: updated.clientId,
+      clientName: updated.client?.name,
+      clientEmail: updated.client?.email,
+      planCode: updated.plan.code,
+      planName: updated.plan.name,
+      status: updated.status,
+      expiresAt: updated.expiresAt,
+      maxPrinters: updated.plan.maxPrinters,
+      maxCompanies: updated.plan.maxCompanies,
+      allowedFeatures: updated.allowedFeatures,
+      action: "UPDATE",
+    });
+
     await this.prisma.auditLog.create({
       data: {
         action: "LICENSE_UPDATED",
@@ -381,16 +409,37 @@ export class LicensesService {
       include: { client: true, plan: true },
     });
 
-    if (status === "SUSPENDED" || status === "PAUSED" || status === "REVOKED") {
-      // SUSPENSÃO IMEDIATA: Notifica CTRL-Farm (HTTP + Firebase Firestore)
+    if (status === "PAUSED") {
       await Promise.allSettled([
         this.ctrlFarmNotifier.notifyLicenseSuspension(
           license.activationKey,
-          `Licença com status alterado para ${status} pelo administrador.`
+          `Licença pausada pelo administrador.`,
+        ),
+        this.firebaseLicenseSync.publishPause(
+          license.activationKey,
+          `Licença pausada pelo administrador.`,
+        ),
+      ]);
+    } else if (status === "SUSPENDED") {
+      await Promise.allSettled([
+        this.ctrlFarmNotifier.notifyLicenseSuspension(
+          license.activationKey,
+          `Licença suspensa pelo administrador.`,
         ),
         this.firebaseLicenseSync.publishSuspension(
           license.activationKey,
-          `Licença com status alterado para ${status} pelo administrador.`
+          `Licença suspensa pelo administrador.`,
+        ),
+      ]);
+    } else if (status === "REVOKED") {
+      await Promise.allSettled([
+        this.ctrlFarmNotifier.notifyLicenseSuspension(
+          license.activationKey,
+          `Licença revogada pelo administrador.`,
+        ),
+        this.firebaseLicenseSync.publishRevocation(
+          license.activationKey,
+          `Licença revogada pelo administrador.`,
         ),
       ]);
     } else if (status === "ACTIVE") {
@@ -398,18 +447,22 @@ export class LicensesService {
       await Promise.allSettled([
         this.ctrlFarmNotifier.notifyLicenseActivation(
           license.activationKey,
-          license.expiresAt.toISOString()
+          license.expiresAt.toISOString(),
         ),
         this.firebaseLicenseSync.publishLicense({
           id: license.id,
           key: license.activationKey,
           clientId: license.clientId,
+          clientName: license.client?.name,
+          clientEmail: license.client?.email,
           planCode: license.plan.code,
+          planName: license.plan.name,
           status: "ACTIVE",
           expiresAt: license.expiresAt,
           maxPrinters: license.plan.maxPrinters,
           maxCompanies: license.plan.maxCompanies,
           allowedFeatures: license.allowedFeatures,
+          action: "ACTIVATE",
         }),
       ]);
     }
@@ -441,6 +494,9 @@ export class LicensesService {
     await this.prisma.license.delete({
       where: { id },
     });
+
+    // Remove ou desativa chave no Firebase Firestore
+    await this.firebaseLicenseSync.deleteLicenseDoc(license.activationKey);
 
     await this.prisma.auditLog.create({
       data: {

@@ -1,8 +1,13 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Post, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 import { AuthService } from "./auth.service.js";
 import { AdminLoginDto, RefreshTokenDto } from "./dto/login.dto.js";
+import {
+  ChangeAdminPasswordDto,
+  ForgotPasswordRequestDto,
+  UpdateAdminProfileDto,
+} from "./dto/admin-profile.dto.js";
 import { CurrentAdmin, JwtAdminAuthGuard } from "./jwt-auth.guard.js";
 import type { AuthenticatedAdmin } from "./jwt.strategy.js";
 
@@ -31,5 +36,41 @@ export class AuthController {
   @ApiOperation({ summary: "Obtém dados do administrador atualmente autenticado" })
   getMe(@CurrentAdmin() admin: AuthenticatedAdmin) {
     return this.authService.getMe(admin.id);
+  }
+
+  @Patch("profile")
+  @UseGuards(JwtAdminAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Atualiza dados de perfil do Administrador Geral (nome, username, email de recuperação)" })
+  updateProfile(
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Body() dto: UpdateAdminProfileDto,
+    @Req() req: Request,
+  ) {
+    const ip = req.ip || req.socket.remoteAddress || "127.0.0.1";
+    const userAgent = req.headers["user-agent"] || "Unknown";
+    return this.authService.updateProfile(admin.id, dto, ip, userAgent);
+  }
+
+  @Post("change-password")
+  @UseGuards(JwtAdminAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Altera a senha do Administrador Geral mediante confirmação da senha atual" })
+  changePassword(
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Body() dto: ChangeAdminPasswordDto,
+    @Req() req: Request,
+  ) {
+    const ip = req.ip || req.socket.remoteAddress || "127.0.0.1";
+    const userAgent = req.headers["user-agent"] || "Unknown";
+    return this.authService.changePassword(admin.id, dto, ip, userAgent);
+  }
+
+  @Post("forgot-password")
+  @ApiOperation({ summary: "Solicita recuperação de senha para o e-mail do Administrador Geral" })
+  forgotPassword(@Body() dto: ForgotPasswordRequestDto, @Req() req: Request) {
+    const ip = req.ip || req.socket.remoteAddress || "127.0.0.1";
+    const userAgent = req.headers["user-agent"] || "Unknown";
+    return this.authService.requestPasswordReset(dto, ip, userAgent);
   }
 }
