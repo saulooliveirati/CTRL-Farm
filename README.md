@@ -54,4 +54,4 @@ Criar o ERP mais completo para gerenciamento de impressão 3D.
 
 ---
 
-Desenvolvido por LuLuKa Art 3D.
+Desenvolvido por Saulo Oliveira.
