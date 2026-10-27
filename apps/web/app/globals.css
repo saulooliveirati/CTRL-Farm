@@ -1,5 +1,77 @@
 @import "tailwindcss";
 
+/* Industrial Dark Mode Overrides for react-grid-layout */
+.react-grid-layout {
+  position: relative;
+  transition: height 200ms ease;
+}
+
+.react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top, width, height;
+}
+
+.react-grid-item.cssTransforms {
+  transition-property: transform, width, height;
+}
+
+.react-grid-item.resizing {
+  transition: none;
+  z-index: 10;
+  will-change: width, height;
+  border-color: #20c997 !important;
+}
+
+.react-grid-item.react-draggable-dragging {
+  transition: none;
+  z-index: 50;
+  will-change: transform;
+  opacity: 0.92;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(32, 201, 151, 0.35) !important;
+}
+
+.react-grid-item.dropping {
+  visibility: hidden;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: rgba(32, 201, 151, 0.12) !important;
+  border: 2px dashed #20c997 !important;
+  border-radius: 0.75rem !important;
+  opacity: 1 !important;
+  z-index: 2 !important;
+  box-shadow: 0 0 25px rgba(32, 201, 151, 0.25) !important;
+}
+
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  opacity: 0;
+  cursor: se-resize;
+}
+
+.react-grid-item:hover > .react-resizable-handle {
+  opacity: 1;
+}
+
+.react-grid-item > .react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #20c997;
+  border-bottom: 2px solid #20c997;
+}
+
+.react-grid-item > .react-resizable-handle.react-resizable-handle-se {
+  bottom: 0;
+  right: 0;
+  cursor: se-resize;
+}
+
 :root {
   color-scheme: dark;
   --background: #0a0f1b;
