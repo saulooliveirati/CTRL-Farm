@@ -17,13 +17,9 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalInterceptors(
-    new ResponseInterceptor(),
-  );
+  app.useGlobalInterceptors(new ResponseInterceptor());
 
-  app.useGlobalFilters(
-    new HttpExceptionFilter(),
-  );
+  app.useGlobalFilters(new HttpExceptionFilter());
 
   const config = new DocumentBuilder()
     .setTitle("CTRL+Farm API")

@@ -1,22 +1,25 @@
 import { Test, TestingModule } from "@nestjs/testing";
-
 import { CompaniesController } from "./companies.controller.js";
 import { CompaniesService } from "./companies.service.js";
 
 describe("CompaniesController", () => {
   let controller: CompaniesController;
-  let companiesService: { findAll: ReturnType<typeof vi.fn> };
+  let companiesService: {
+    findAll: ReturnType<typeof vi.fn>;
+    getMe: ReturnType<typeof vi.fn>;
+    updateMe: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(async () => {
     companiesService = {
       findAll: vi.fn().mockResolvedValue([]),
+      getMe: vi.fn().mockResolvedValue({ id: "company-1", name: "Farm" }),
+      updateMe: vi.fn().mockResolvedValue({ id: "company-1", name: "Farm" }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CompaniesController],
-      providers: [
-        { provide: CompaniesService, useValue: companiesService },
-      ],
+      providers: [{ provide: CompaniesService, useValue: companiesService }],
     }).compile();
 
     controller = module.get<CompaniesController>(CompaniesController);

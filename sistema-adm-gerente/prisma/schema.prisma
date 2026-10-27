@@ -1,0 +1,292 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("ADM_DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/adm-client"
+}
+
+enum AdminRole {
+  OWNER
+  MANAGER
+  SUPPORT
+}
+
+enum ClientStatus {
+  ACTIVE
+  PENDING
+  PAUSED
+  SUSPENDED
+  CANCELLED
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum SubscriptionStatus {
+  ATIVO
+  PENDENTE
+  PAUSADO
+  SUSPENSO
+  CANCELADO
+  EXPIRADO
+}
+
+enum LicenseStatus {
+  ACTIVE
+  PENDING_ACTIVATION
+  PAUSED
+  SUSPENDED
+  EXPIRED
+  REVOKED
+}
+
+enum ReleaseStatus {
+  DRAFT
+  PUBLISHED
+  DEPRECATED
+}
+
+model AdminUser {
+  id           String     @id @default(uuid())
+  username     String     @unique
+  name         String
+  email        String     @unique
+  password     String
+  role         AdminRole  @default(OWNER)
+  active       Boolean    @default(true)
+  lastLoginAt  DateTime?
+  refreshToken String?    @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  auditLogs    AuditLog[]
+
+  @@map("adm_users")
+}
+
+model Client {
+  id            String         @id @default(uuid())
+  name          String
+  tradeName     String?
+  document      String?        // CPF ou CNPJ
+  email         String         @unique
+  phone         String?
+  contactPerson String?
+  status        ClientStatus   @default(ACTIVE)
+  notes         String?        @db.Text
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  subscriptions Subscription[]
+  licenses      License[]
+  auditLogs     AuditLog[]
+
+  @@map("adm_clients")
+}
+
+model Plan {
+  id             String         @id @default(uuid())
+  code           String         @unique // STARTER, PROFESSIONAL, BUSINESS, ENTERPRISE, TRIAL, UNLIMITED_OWNER
+  name           String
+  description    String?        @db.Text
+  monthlyPrice   Decimal        @db.Decimal(10, 2)
+  quarterlyPrice Decimal?       @db.Decimal(10, 2)
+  annualPrice    Decimal?       @db.Decimal(10, 2)
+  maxUsers       Int            @default(1) // -1 para ilimitado
+  maxCompanies   Int            @default(1) // -1 para ilimitado
+  maxPrinters    Int            @default(10) // -1 para ilimitado
+  features       Json           // Matriz detalhada de permissões e módulos liberados
+  isPublic       Boolean        @default(true) // false para Unlimited Owner
+  isTrial        Boolean        @default(false)
+  trialDays      Int            @default(0)
+  active         Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  subscriptions  Subscription[]
+  licenses       License[]
+
+  @@map("adm_plans")
+}
+
+model Subscription {
+  id              String             @id @default(uuid())
+  clientId        String
+  planId          String
+  billingCycle    BillingCycle       @default(MONTHLY)
+  status          SubscriptionStatus @default(ATIVO)
+  currentPrice    Decimal            @db.Decimal(10, 2)
+  startDate       DateTime           @default(now())
+  nextBillingDate DateTime
+  cancelledAt     DateTime?
+  paymentMethod   String?            // PIX, CARTAO, BOLETO, CORTESIA
+  paymentHistory  Json?              // Histórico de transações e recibos
+  autoRenew       Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  client          Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  plan            Plan               @relation(fields: [planId], references: [id])
+  licenses        License[]
+
+  @@index([clientId, status])
+  @@map("adm_subscriptions")
+}
+
+model License {
+  id                     String                 @id @default(uuid())
+  activationKey          String                 @unique // Formato: CTRL-FARM-XXXX-XXXX-XXXX
+  clientId               String
+  planId                 String
+  subscriptionId         String?
+  status                 LicenseStatus          @default(ACTIVE)
+  issuedAt               DateTime               @default(now())
+  expiresAt              DateTime
+  allowedFeatures        Json                   // Snapshot exato dos recursos liberados
+  rsaSignature           String                 @db.Text // Assinatura digital RSA-SHA256 Base64
+  hardwareFingerprint    String?                // Assinatura de hardware registrada após ativação
+  clientIp               String?
+  lastValidatedAt        DateTime?
+  offlineGracePeriodDays Int                    @default(7)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  client                 Client                 @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  plan                   Plan                   @relation(fields: [planId], references: [id])
+  subscription           Subscription?          @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  validationLogs         LicenseValidationLog[]
+
+  @@index([activationKey, status])
+  @@index([clientId])
+  @@map("adm_licenses")
+}
+
+model LicenseValidationLog {
+  id            String    @id @default(uuid())
+  licenseId     String
+  instanceId    String?
+  ipAddress     String?
+  clientVersion String?
+  validatedAt   DateTime  @default(now())
+  isOnline      Boolean   @default(true)
+  status        String    @default("OK") // OK, EXPIRED, TAMPERED, BLOCKED
+  details       Json?
+
+  license       License   @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+
+  @@index([licenseId, validatedAt])
+  @@map("adm_license_validation_logs")
+}
+
+model UpdateRelease {
+  id                   String        @id @default(uuid())
+  version              String        @unique // ex: v2.4.0
+  title                String
+  description          String        @db.Text
+  releaseDate          DateTime      @default(now())
+  changelog            Json          // Array de novidades, correções e melhorias
+  isMandatory          Boolean       @default(false)
+  isCritical           Boolean       @default(false)
+  downloadUrl          String?
+  checksumSha256       String?
+  minSupportedVersion  String?
+  status               ReleaseStatus @default(PUBLISHED)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@map("adm_update_releases")
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  action      String    // LOGIN, KEY_GENERATED, LICENSE_ACTIVATED, PLAN_CHANGED, UPDATE_PUBLISHED, etc.
+  performedBy String?
+  adminUserId String?
+  clientId    String?
+  targetType  String?   // CLIENT, LICENSE, PLAN, UPDATE, SYSTEM
+  targetId    String?
+  ipAddress   String?
+  userAgent   String?
+  details     Json?
+  createdAt   DateTime  @default(now())
+
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+  client      Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([action, createdAt])
+  @@index([adminUserId])
+  @@map("adm_audit_logs")
+}
+
+model SystemSettings {
+  id                           String    @id @default("default")
+  companyName                  String    @default("CTRL-Farm Tecnologia")
+  tradeName                    String?   @default("CTRL-Farm 3D Intelligence")
+  document                     String?   @default("00.000.000/0001-00")
+  supportEmail                 String    @default("suporte@ctrlfarm.com.br")
+  supportPhone                 String?   @default("(11) 99999-9999")
+  defaultOfflineGraceDays      Int       @default(7)
+  autoGenerateLicenseOnPayment Boolean   @default(true)
+  autoRenewSubscription        Boolean   @default(true)
+  notifyExpiringLicensesDays   Int       @default(15)
+  termsOfServiceUrl            String?
+  privacyPolicyUrl             String?
+  createdAt                    DateTime  @default(now())
+  updatedAt                    DateTime  @updatedAt
+
+  @@map("adm_system_settings")
+}
+
+model PaymentGatewayConfig {
+  id              String    @id @default(uuid())
+  provider        String    @unique // MERCADO_PAGO, PAGSEGURO, INFINITEPAY, ASAAS
+  name            String
+  description     String?
+  enabled         Boolean   @default(false)
+  isSandbox       Boolean   @default(true)
+  credentials     Json      // { accessToken, publicKey, clientSecret, apiKey, webhookSecret, walletId }
+  acceptedMethods Json      // ["PIX", "CREDIT_CARD", "DEBIT_CARD", "BOLETO"]
+  webhookEndpoint String
+  lastTestedAt    DateTime?
+  lastTestStatus  String?   // SUCCESS, FAILED
+  lastTestMessage String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  transactions    PaymentTransaction[]
+
+  @@map("adm_payment_gateway_configs")
+}
+
+model PaymentTransaction {
+  id               String               @id @default(uuid())
+  subscriptionId   String?
+  clientId         String?
+  gatewayConfigId  String?
+  provider         String               // MERCADO_PAGO, PAGSEGURO, INFINITEPAY, ASAAS, MANUAL
+  gatewayPaymentId String?
+  amount           Decimal              @db.Decimal(10, 2)
+  method           String               // PIX, CREDIT_CARD, DEBIT_CARD, BOLETO
+  status           String               @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED, REFUNDED
+  pixQrCode        String?              @db.Text
+  pixQrCodeUrl     String?              @db.Text
+  boletoBarcode    String?
+  boletoUrl        String?
+  paidAt           DateTime?
+  rawPayload       Json?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  gatewayConfig    PaymentGatewayConfig? @relation(fields: [gatewayConfigId], references: [id], onDelete: SetNull)
+
+  @@index([provider, status])
+  @@index([subscriptionId])
+  @@index([clientId])
+  @@map("adm_payment_transactions")
+}

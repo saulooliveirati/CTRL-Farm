@@ -28,6 +28,11 @@ export class PrintersService {
           serialNumber: dto.serialNumber?.trim() || null,
           location: dto.location?.trim() || null,
           notes: dto.notes?.trim() || null,
+          nozzleMm: dto.nozzleMm ?? 0.4,
+          extruderCount: dto.extruderCount ?? 1,
+          hasAms: dto.hasAms ?? false,
+          usageHours: dto.usageHours ?? 0,
+          imageUrl: dto.imageUrl?.trim() || null,
           status: dto.status,
           supplierId: dto.supplierId || null,
         },
@@ -54,6 +59,11 @@ export class PrintersService {
           ...(dto.serialNumber !== undefined && { serialNumber: dto.serialNumber.trim() || null }),
           ...(dto.location !== undefined && { location: dto.location.trim() || null }),
           ...(dto.notes !== undefined && { notes: dto.notes.trim() || null }),
+          ...(dto.nozzleMm !== undefined && { nozzleMm: dto.nozzleMm }),
+          ...(dto.extruderCount !== undefined && { extruderCount: dto.extruderCount }),
+          ...(dto.hasAms !== undefined && { hasAms: dto.hasAms }),
+          ...(dto.usageHours !== undefined && { usageHours: dto.usageHours }),
+          ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl?.trim() || null }),
           ...(dto.status !== undefined && { status: dto.status }),
           ...(dto.supplierId !== undefined && { supplierId: dto.supplierId || null }),
         },
@@ -68,21 +78,33 @@ export class PrintersService {
   }
 
   async remove(companyId: string, id: string) {
-    const printer = await this.prisma.printer.findFirst({ where: { id, companyId }, select: { id: true, _count: { select: { productionJobs: true } } } });
+    const printer = await this.prisma.printer.findFirst({
+      where: { id, companyId },
+      select: { id: true, _count: { select: { productionJobs: true } } },
+    });
     if (!printer) throw new NotFoundException("Impressora não encontrada.");
-    if (printer._count.productionJobs > 0) throw new ConflictException("Esta impressora possui histórico de produção e não pode ser excluída. Altere seu status para manutenção ou inativa.");
+    if (printer._count.productionJobs > 0)
+      throw new ConflictException(
+        "Esta impressora possui histórico de produção e não pode ser excluída. Altere seu status para manutenção ou inativa.",
+      );
     await this.prisma.printer.delete({ where: { id } });
     return { id };
   }
 
   private async ensureOwned(companyId: string, id: string) {
-    const printer = await this.prisma.printer.findFirst({ where: { id, companyId }, select: { id: true } });
+    const printer = await this.prisma.printer.findFirst({
+      where: { id, companyId },
+      select: { id: true },
+    });
     if (!printer) throw new NotFoundException("Impressora não encontrada.");
   }
 
   private async ensureSupplier(companyId: string, supplierId?: string | null) {
     if (!supplierId) return;
-    const supplier = await this.prisma.supplier.findFirst({ where: { id: supplierId, companyId }, select: { id: true } });
+    const supplier = await this.prisma.supplier.findFirst({
+      where: { id: supplierId, companyId },
+      select: { id: true },
+    });
     if (!supplier) throw new NotFoundException("Fornecedor não encontrado nesta empresa.");
   }
 

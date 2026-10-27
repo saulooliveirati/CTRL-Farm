@@ -8,10 +8,7 @@ export async function GET() {
   const token = cookieStore.get("ctrlfarm_session")?.value;
 
   if (!token) {
-    return NextResponse.json(
-      { success: false, message: "Sessão ausente." },
-      { status: 401 },
-    );
+    return NextResponse.json({ success: false, message: "Sessão ausente." }, { status: 401 });
   }
 
   try {

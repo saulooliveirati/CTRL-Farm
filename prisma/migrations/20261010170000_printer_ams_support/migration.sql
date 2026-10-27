@@ -1,0 +1,2 @@
+ALTER TABLE "Printer"
+  ADD COLUMN "hasAms" BOOLEAN NOT NULL DEFAULT false;

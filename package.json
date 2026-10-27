@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "pnpm --parallel --filter ./apps/* dev",
+    "mediamtx": "bin\\mediamtx\\mediamtx.exe bin\\mediamtx\\mediamtx.yml",
     "build": "pnpm --recursive build",
     "lint": "biome check .",
     "format": "biome format --write .",
@@ -28,5 +29,8 @@
     "prisma": "6.16.3",
     "reflect-metadata": "^0.2.2",
     "swagger-ui-express": "^5.0.1"
+  },
+  "dependencies": {
+    "mqtt": "^5.16.1"
   }
 }

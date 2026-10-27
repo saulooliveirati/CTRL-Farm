@@ -36,7 +36,7 @@ export function RegisterForm() {
         setError(
           Array.isArray(result.message)
             ? result.message.join(" ")
-            : result.message ?? "Não foi possível criar a conta.",
+            : (result.message ?? "Não foi possível criar a conta."),
         );
         return;
       }

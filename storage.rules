@@ -1,0 +1,37 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isMemberOfCompany(companyId) {
+      return isAuthenticated() && (
+        request.auth.token.companyId == companyId ||
+        request.auth.uid == companyId
+      );
+    }
+
+    // Projetos 3D, Arquivos STL, 3MF e G-Code (Isolamento Multi-tenant)
+    // Leitura: Permitida apenas para usuários pertencentes à empresa detentora
+    // Uploads e exclusões: Processados exclusivamente pela API NestJS (validação de tipo, tamanho e integridade)
+    match /projects/{companyId}/{fileName} {
+      allow read: if isMemberOfCompany(companyId);
+      allow write: if false;
+    }
+
+    // Pacotes de Distribuição de Atualizações / Releases (Sistema ADM Gerente)
+    // Leitura: Acesso aos clientes para atualização
+    // Escrita: Restrita ao backend administrativo
+    match /releases/{version}/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Bloqueio padrão para qualquer outro caminho não mapeado
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

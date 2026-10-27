@@ -9,7 +9,11 @@ export class InventoryMaterialsService {
   constructor(private readonly prisma: PrismaService) {}
 
   findAll(companyId: string) {
-    return this.prisma.inventoryMaterial.findMany({ where: { companyId }, include: { supplier: { select: { id: true, name: true } } }, orderBy: [{ category: "asc" }, { name: "asc" }] });
+    return this.prisma.inventoryMaterial.findMany({
+      where: { companyId },
+      include: { supplier: { select: { id: true, name: true } } },
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+    });
   }
 
   async create(companyId: string, dto: CreateInventoryMaterialDto) {
@@ -17,15 +21,22 @@ export class InventoryMaterialsService {
     try {
       return await this.prisma.inventoryMaterial.create({
         data: {
-          companyId, name: dto.name.trim(), category: dto.category, unit: dto.unit.trim(),
-          sku: dto.sku?.trim() || null, currentQuantity: dto.currentQuantity ?? 0,
-          minimumQuantity: dto.minimumQuantity ?? 0, unitCost: dto.unitCost ?? null,
-          supplierId: dto.supplierId || null, notes: dto.notes?.trim() || null,
+          companyId,
+          name: dto.name.trim(),
+          category: dto.category,
+          unit: dto.unit.trim(),
+          sku: dto.sku?.trim() || null,
+          currentQuantity: dto.currentQuantity ?? 0,
+          minimumQuantity: dto.minimumQuantity ?? 0,
+          unitCost: dto.unitCost ?? null,
+          supplierId: dto.supplierId || null,
+          notes: dto.notes?.trim() || null,
         },
         include: { supplier: { select: { id: true, name: true } } },
       });
     } catch (error: unknown) {
-      if (this.isUniqueViolation(error)) throw new ConflictException("Já existe um material com este código SKU.");
+      if (this.isUniqueViolation(error))
+        throw new ConflictException("Já existe um material com este código SKU.");
       throw error;
     }
   }
@@ -35,15 +46,23 @@ export class InventoryMaterialsService {
     if (!material) throw new NotFoundException("Material não encontrado.");
     await this.ensureSupplier(companyId, dto.supplierId);
     try {
-      return await this.prisma.inventoryMaterial.update({ where: { id }, data: this.normalize(dto), include: { supplier: { select: { id: true, name: true } } } });
+      return await this.prisma.inventoryMaterial.update({
+        where: { id },
+        data: this.normalize(dto),
+        include: { supplier: { select: { id: true, name: true } } },
+      });
     } catch (error: unknown) {
-      if (this.isUniqueViolation(error)) throw new ConflictException("Já existe um material com este código SKU.");
+      if (this.isUniqueViolation(error))
+        throw new ConflictException("Já existe um material com este código SKU.");
       throw error;
     }
   }
 
   async remove(companyId: string, id: string) {
-    const material = await this.prisma.inventoryMaterial.findFirst({ where: { id, companyId }, select: { id: true } });
+    const material = await this.prisma.inventoryMaterial.findFirst({
+      where: { id, companyId },
+      select: { id: true },
+    });
     if (!material) throw new NotFoundException("Material não encontrado.");
     await this.prisma.inventoryMaterial.delete({ where: { id } });
     return { id };
@@ -51,7 +70,10 @@ export class InventoryMaterialsService {
 
   private async ensureSupplier(companyId: string, supplierId?: string | null) {
     if (!supplierId) return;
-    const supplier = await this.prisma.supplier.findFirst({ where: { id: supplierId, companyId }, select: { id: true } });
+    const supplier = await this.prisma.supplier.findFirst({
+      where: { id: supplierId, companyId },
+      select: { id: true },
+    });
     if (!supplier) throw new NotFoundException("Fornecedor não encontrado nesta empresa.");
   }
 

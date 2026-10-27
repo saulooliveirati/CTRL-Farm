@@ -1,0 +1,25 @@
+logLevel: info
+api: yes
+apiAddress: 0.0.0.0:9998
+rtsp: no
+hls: yes
+hlsAddress: 0.0.0.0:8888
+webrtc: yes
+webrtcAddress: 0.0.0.0:8890
+webrtcLocalUDPAddress: 0.0.0.0:8190
+webrtcAdditionalHosts:
+  - 127.0.0.1
+  - localhost
+  - 192.168.1.108
+paths: {}
+authInternalUsers:
+  - user: ctrlfarm-api
+    pass: dtpBARGmJn9kVfgql45nlJvv8cCZzlCZ4YF01UUOXU0khsIZ
+    ips: []
+    permissions:
+      - action: api
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: read

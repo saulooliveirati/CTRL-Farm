@@ -1,6 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { FilamentMaterial } from "@prisma/client";
-import { IsDateString, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min, MinLength } from "class-validator";
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  Min,
+  MinLength,
+} from "class-validator";
 import { Type } from "class-transformer";
 
 export class CreateFilamentDto {
@@ -52,6 +63,7 @@ export class CreateFilamentDto {
   purchasedAt?: string;
 
   @ApiPropertyOptional({ description: "Fornecedor da bobina" })
-  @IsOptional() @IsUUID()
+  @IsOptional()
+  @IsUUID()
   supplierId?: string | null;
 }

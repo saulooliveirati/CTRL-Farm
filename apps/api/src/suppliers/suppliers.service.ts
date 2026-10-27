@@ -16,13 +16,18 @@ export class SuppliersService {
     try {
       return await this.prisma.supplier.create({
         data: {
-          companyId, name: dto.name.trim(), document: dto.document?.trim() || null,
-          email: dto.email?.trim().toLowerCase() || null, phone: dto.phone?.trim() || null,
-          address: dto.address?.trim() || null, notes: dto.notes?.trim() || null,
+          companyId,
+          name: dto.name.trim(),
+          document: dto.document?.trim() || null,
+          email: dto.email?.trim().toLowerCase() || null,
+          phone: dto.phone?.trim() || null,
+          address: dto.address?.trim() || null,
+          notes: dto.notes?.trim() || null,
         },
       });
     } catch (error: unknown) {
-      if (this.isUniqueViolation(error)) throw new ConflictException("Já existe um fornecedor com estes dados.");
+      if (this.isUniqueViolation(error))
+        throw new ConflictException("Já existe um fornecedor com estes dados.");
       throw error;
     }
   }
@@ -32,23 +37,38 @@ export class SuppliersService {
     try {
       return await this.prisma.supplier.update({ where: { id }, data: this.normalize(dto) });
     } catch (error: unknown) {
-      if (this.isUniqueViolation(error)) throw new ConflictException("Já existe um fornecedor com estes dados.");
+      if (this.isUniqueViolation(error))
+        throw new ConflictException("Já existe um fornecedor com estes dados.");
       throw error;
     }
   }
 
   async remove(companyId: string, id: string) {
-    const supplier = await this.prisma.supplier.findFirst({ where: { id, companyId }, select: { id: true, _count: { select: { printers: true, filaments: true, inventoryMaterials: true } } } });
+    const supplier = await this.prisma.supplier.findFirst({
+      where: { id, companyId },
+      select: {
+        id: true,
+        _count: { select: { printers: true, filaments: true, inventoryMaterials: true } },
+      },
+    });
     if (!supplier) throw new NotFoundException("Fornecedor não encontrado.");
-    if (supplier._count.printers + supplier._count.filaments + supplier._count.inventoryMaterials > 0) {
-      throw new ConflictException("Este fornecedor está vinculado a equipamentos ou materiais cadastrados.");
+    if (
+      supplier._count.printers + supplier._count.filaments + supplier._count.inventoryMaterials >
+      0
+    ) {
+      throw new ConflictException(
+        "Este fornecedor está vinculado a equipamentos ou materiais cadastrados.",
+      );
     }
     await this.prisma.supplier.delete({ where: { id } });
     return { id };
   }
 
   private async ensureOwned(companyId: string, id: string) {
-    const supplier = await this.prisma.supplier.findFirst({ where: { id, companyId }, select: { id: true } });
+    const supplier = await this.prisma.supplier.findFirst({
+      where: { id, companyId },
+      select: { id: true },
+    });
     if (!supplier) throw new NotFoundException("Fornecedor não encontrado.");
   }
 

@@ -25,6 +25,8 @@ O beta atual inclui:
 - Pedido vinculado diretamente à ordem de produção correspondente.
 - Baixa automática do consumo real de filamento ao concluir uma ordem.
 - Dados operacionais isolados por empresa.
+- Calculadora de preço com custos unitários, perdas, taxas, impostos, margem e histórico de simulações.
+- Biblioteca de arquivos 3D e documentos, com versões, tags e vínculo opcional à produção.
 
 ## Executar localmente
 
@@ -37,6 +39,8 @@ Pré-requisitos: Node.js 24 ou superior, pnpm e Docker.
 5. Inicie web e API: `pnpm dev`.
 
 A aplicação web fica em `http://localhost:3000` e a documentação da API em `http://localhost:3001/docs`.
+
+Os arquivos enviados pela biblioteca ficam em `storage/projects`, diretório ignorado pelo Git. Em implantação, configure `CTRL_FARM_STORAGE_DIR` para um volume persistente e compartilhado entre as instâncias da API. O limite atual é de 50 MB por arquivo.
 
 O primeiro acesso é criado pela tela de cadastro. A API é executada na porta 3001 e o Next.js encaminha as chamadas autenticadas pelo backend web. Configure `DATABASE_URL` e um `JWT_SECRET` forte no `.env`; nunca versione esse arquivo.
 

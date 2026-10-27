@@ -1,11 +1,15 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "sistema-adm-gerente"
+  - "sistema-adm-gerente/*"
 allowBuilds:
+  '@firebase/util': true
   '@prisma/client': true
   '@prisma/engines': true
   '@scarf/scarf': true
   bcrypt: true
   esbuild: true
   prisma: true
+  protobufjs: true
   unrs-resolver: true

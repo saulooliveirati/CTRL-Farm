@@ -35,6 +35,17 @@ export async function POST(request: Request) {
 
     const login = result?.data;
 
+    // Se o usuário tem autenticação em 2 fatores (2FA) ativada
+    if (login?.requires2FA) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          requires2FA: true,
+          email: login.email,
+        },
+      });
+    }
+
     if (!login?.accessToken || !login?.user) {
       return NextResponse.json(
         { success: false, message: "A API retornou uma sessão inválida." },

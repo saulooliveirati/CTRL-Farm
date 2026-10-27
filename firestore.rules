@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Funções auxiliares de autorização
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isMemberOfCompany(companyId) {
+      return isAuthenticated() && (
+        request.auth.token.companyId == companyId ||
+        request.auth.uid == companyId ||
+        request.auth.token.role == 'ADMIN'
+      );
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 1. Coleções Globais de Licenças e Assinaturas (Leitura autenticada, escrita restrita ao Admin SDK)
+    match /licenses/{licenseKey} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Gerenciado exclusivamente pelo Sistema ADM Gerente via Admin SDK
+    }
+
+    match /subscriptions/{subscriptionId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    match /releases/{version} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // 2. Empresas & Subcoleções
+    match /companies/{companyId} {
+      allow read: if isMemberOfCompany(companyId);
+      allow write: if isMemberOfCompany(companyId) && request.auth.token.role == 'ADMIN';
+
+      // Telemetria de Impressoras 3D
+      match /printers/{printerId} {
+        allow read: if isMemberOfCompany(companyId);
+        allow write: if false; // Apenas backend com Admin SDK
+      }
+
+      // Fila e Andamento de Trabalhos de Impressão (Print Jobs)
+      match /print_jobs/{jobId} {
+        allow read: if isMemberOfCompany(companyId);
+        allow write: if false;
+      }
+    }
+
+    // 3. Coleções do Banco de Dados Sincronizadas (Multi-Tenant por companyId)
+    match /printers/{printerId} {
+      allow read: if isAuthenticated() && (resource == null || isMemberOfCompany(resource.data.companyId));
+      allow write: if isAuthenticated() && isMemberOfCompany(request.resource.data.companyId);
+    }
+
+    match /filaments/{filamentId} {
+      allow read: if isAuthenticated() && (resource == null || isMemberOfCompany(resource.data.companyId));
+      allow write: if isAuthenticated() && isMemberOfCompany(request.resource.data.companyId);
+    }
+
+    match /inventory_materials/{materialId} {
+      allow read: if isAuthenticated() && (resource == null || isMemberOfCompany(resource.data.companyId));
+      allow write: if isAuthenticated() && isMemberOfCompany(request.resource.data.companyId);
+    }
+
+    match /production_jobs/{jobId} {
+      allow read: if isAuthenticated() && (resource == null || isMemberOfCompany(resource.data.companyId));
+      allow write: if isAuthenticated() && isMemberOfCompany(request.resource.data.companyId);
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (resource == null || isMemberOfCompany(resource.data.companyId));
+      allow write: if isAuthenticated() && isMemberOfCompany(request.resource.data.companyId);
+    }
+
+    match /customers/{customerId} {
+      allow read: if isAuthenticated() && (resource == null || isMemberOfCompany(resource.data.companyId));
+      allow write: if isAuthenticated() && isMemberOfCompany(request.resource.data.companyId);
+    }
+
+    match /suppliers/{supplierId} {
+      allow read: if isAuthenticated() && (resource == null || isMemberOfCompany(resource.data.companyId));
+      allow write: if isAuthenticated() && isMemberOfCompany(request.resource.data.companyId);
+    }
+
+    match /project_files/{fileId} {
+      allow read: if isAuthenticated() && (resource == null || isMemberOfCompany(resource.data.companyId));
+      allow write: if isAuthenticated() && isMemberOfCompany(request.resource.data.companyId);
+    }
+
+    match /section_tabs/{tabId} {
+      allow read: if isAuthenticated() && (resource == null || isMemberOfCompany(resource.data.companyId));
+      allow write: if isAuthenticated() && isMemberOfCompany(request.resource.data.companyId);
+    }
+
+    // 4. Notificações do Sistema e da Fazenda 3D
+    match /notifications/{targetId}/items/{itemId} {
+      allow read: if isOwner(targetId) || isMemberOfCompany(targetId);
+      allow update: if (isOwner(targetId) || isMemberOfCompany(targetId)) && 
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create, delete: if false; // Criadas exclusivamente pelo backend
+    }
+
+    // Bloqueio por padrão (Zero Trust / Least Privilege)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

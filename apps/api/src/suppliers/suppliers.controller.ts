@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiCreatedResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
@@ -17,18 +27,30 @@ export class SuppliersController {
 
   @Get()
   @ApiOperation({ summary: "Lista fornecedores da empresa" })
-  findAll(@CurrentUser() user: AuthenticatedUser) { return this.suppliersService.findAll(user.companyId); }
+  findAll(@CurrentUser() user: AuthenticatedUser) {
+    return this.suppliersService.findAll(user.companyId);
+  }
 
   @Post()
   @ApiOperation({ summary: "Cadastra fornecedor" })
   @ApiCreatedResponse({ description: "Fornecedor cadastrado." })
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateSupplierDto) { return this.suppliersService.create(user.companyId, dto); }
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateSupplierDto) {
+    return this.suppliersService.create(user.companyId, dto);
+  }
 
   @Patch(":id")
   @ApiOperation({ summary: "Atualiza fornecedor" })
-  update(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string, @Body() dto: UpdateSupplierDto) { return this.suppliersService.update(user.companyId, id, dto); }
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateSupplierDto,
+  ) {
+    return this.suppliersService.update(user.companyId, id, dto);
+  }
 
   @Delete(":id")
   @ApiOperation({ summary: "Remove fornecedor sem materiais vinculados" })
-  remove(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string) { return this.suppliersService.remove(user.companyId, id); }
+  remove(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string) {
+    return this.suppliersService.remove(user.companyId, id);
+  }
 }

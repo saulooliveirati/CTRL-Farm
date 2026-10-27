@@ -31,6 +31,19 @@ services:
     volumes:
       - redis_data:/data
 
+  mediamtx:
+    image: bluenviron/mediamtx:1.21.2
+    container_name: ctrlfarm-mediamtx
+    restart: unless-stopped
+    environment:
+      MTX_AUTHINTERNALUSERS_0_PASS: ${MEDIAMTX_API_PASSWORD:?Add MEDIAMTX_API_PASSWORD to .env}
+    ports:
+      - "127.0.0.1:9997:9997/tcp"
+      - "127.0.0.1:8889:8889/tcp"
+      - "127.0.0.1:8189:8189/udp"
+    volumes:
+      - ./docker/mediamtx.yml:/mediamtx.yml:ro
+
 volumes:
   postgres_data:
   redis_data:

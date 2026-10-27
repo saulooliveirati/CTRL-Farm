@@ -14,5 +14,8 @@ playwright-report/
 test-results/
 storage/
 backups/
+bin/**/*.exe
+*.key
+*.crt
 .DS_Store
 Thumbs.db

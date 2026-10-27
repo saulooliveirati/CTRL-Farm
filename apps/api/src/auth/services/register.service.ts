@@ -1,7 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-} from "@nestjs/common";
+import { ConflictException, Injectable } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
 
 import { PrismaService } from "../../database/prisma.service.js";

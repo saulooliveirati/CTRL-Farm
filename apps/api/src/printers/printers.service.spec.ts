@@ -22,7 +22,9 @@ describe("PrintersService", () => {
     const update = vi.fn();
     const service = new PrintersService({ printer: { findFirst, update } } as never);
 
-    await expect(service.update("company-1", "printer-2", { status: "READY" })).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.update("company-1", "printer-2", { status: "READY" }),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(findFirst).toHaveBeenCalledWith({
       where: { id: "printer-2", companyId: "company-1" },
       select: { id: true },
@@ -34,7 +36,9 @@ describe("PrintersService", () => {
     const findFirst = vi.fn().mockResolvedValue({ id: "printer-1", _count: { productionJobs: 1 } });
     const remove = vi.fn();
     const service = new PrintersService({ printer: { findFirst, delete: remove } } as never);
-    await expect(service.remove("company-1", "printer-1")).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.remove("company-1", "printer-1")).rejects.toBeInstanceOf(
+      ConflictException,
+    );
     expect(remove).not.toHaveBeenCalled();
   });
 });

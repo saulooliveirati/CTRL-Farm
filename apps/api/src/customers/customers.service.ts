@@ -29,7 +29,8 @@ export class CustomersService {
         },
       });
     } catch (error: unknown) {
-      if (this.isUniqueViolation(error)) throw new ConflictException("Já existe um cliente com este documento.");
+      if (this.isUniqueViolation(error))
+        throw new ConflictException("Já existe um cliente com este documento.");
       throw error;
     }
   }
@@ -48,22 +49,32 @@ export class CustomersService {
         },
       });
     } catch (error: unknown) {
-      if (this.isUniqueViolation(error)) throw new ConflictException("Já existe um cliente com este documento.");
+      if (this.isUniqueViolation(error))
+        throw new ConflictException("Já existe um cliente com este documento.");
       throw error;
     }
   }
 
   async remove(companyId: string, id: string) {
-    const customer = await this.prisma.customer.findFirst({ where: { id, companyId }, select: { id: true } });
+    const customer = await this.prisma.customer.findFirst({
+      where: { id, companyId },
+      select: { id: true },
+    });
     if (!customer) throw new NotFoundException("Cliente não encontrado.");
     const orders = await this.prisma.customerOrder.count({ where: { customerId: id, companyId } });
-    if (orders > 0) throw new ConflictException("Este cliente possui pedidos vinculados e não pode ser removido.");
+    if (orders > 0)
+      throw new ConflictException(
+        "Este cliente possui pedidos vinculados e não pode ser removido.",
+      );
     await this.prisma.customer.delete({ where: { id } });
     return { id };
   }
 
   private async ensureOwned(companyId: string, id: string) {
-    const customer = await this.prisma.customer.findFirst({ where: { id, companyId }, select: { id: true } });
+    const customer = await this.prisma.customer.findFirst({
+      where: { id, companyId },
+      select: { id: true },
+    });
     if (!customer) throw new NotFoundException("Cliente não encontrado.");
   }
 

@@ -79,6 +79,40 @@ model Company {
   orders             CustomerOrder[]
   suppliers          Supplier[]
   inventoryMaterials InventoryMaterial[]
+  projectFiles       ProjectFile[]
+  pricingEstimates   PricingEstimate[]
+  cameras            Camera[]
+  marketplaceProducts MarketplaceProduct[]
+  userLicenses       UserLicense[]
+  consignmentLocations ConsignmentLocation[]
+  consignments       Consignment[]
+}
+
+enum CameraQuality {
+  HIGH
+  STANDARD
+}
+
+model Camera {
+  id                 String        @id @default(uuid())
+  companyId          String
+  name               String
+  model              String?
+  ipAddress          String
+  quality            CameraQuality @default(HIGH)
+  username           String
+  passwordCiphertext String
+  passwordIv         String
+  passwordTag        String
+  streamPath         String        @unique
+  streamConfigured   Boolean       @default(false)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name])
+  @@index([companyId, createdAt])
 }
 
 model User {
@@ -96,6 +130,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id])
+  license UserLicense?
 }
 
 model Supplier {
@@ -129,14 +164,36 @@ model Printer {
   serialNumber String?
   location     String?
   notes        String?
+  nozzleMm     Decimal       @default(0.4) @db.Decimal(4, 2)
+  extruderCount Int          @default(1)
+  hasAms        Boolean      @default(false)
+  usageHours   Decimal       @default(0) @db.Decimal(10, 2)
+  imageUrl     String?
   status       PrinterStatus @default(OFFLINE)
+  previousStatus String?
   supplierId   String?
+
+  // Telemetria e Conexão de Hardware (Klipper / Moonraker / Bambu / OctoPrint)
+  ipAddress          String?
+  protocol           String?
+  accessCode         String?
+  port               Int?
+  bedTemp            Decimal?      @db.Decimal(5, 2)
+  targetBedTemp      Decimal?      @db.Decimal(5, 2)
+  nozzleTemp         Decimal?      @db.Decimal(5, 2)
+  targetNozzleTemp   Decimal?      @db.Decimal(5, 2)
+  progressPercent    Decimal?      @db.Decimal(5, 2)
+  currentLayer       Int?
+  totalLayers        Int?
+  lastTelemetryAt    DateTime?
+
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  productionJobs ProductionJob[]
-  supplier       Supplier?       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productionJobs   ProductionJob[]
+  pricingEstimates PricingEstimate[]
+  supplier         Supplier?         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, name])
   @@index([companyId, status])
@@ -157,9 +214,10 @@ model Filament {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company        Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
   productionJobs ProductionJob[]
-  supplier       Supplier?       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  jobFilaments   ProductionJobFilament[]
+  supplier       Supplier?               @relation(fields: [supplierId], references: [id], onDelete: Restrict)
 
   @@index([companyId, material])
 }
@@ -192,7 +250,7 @@ model ProductionJob {
   companyId              String
   printerId              String
   filamentId             String
-  orderId                String?          @unique
+  orderId                String?
   name                   String
   status                 ProductionStatus @default(QUEUED)
   plannedWeightG         Int
@@ -207,13 +265,94 @@ model ProductionJob {
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
 
-  company  Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  printer  Printer        @relation(fields: [printerId], references: [id], onDelete: Restrict)
-  filament Filament       @relation(fields: [filamentId], references: [id], onDelete: Restrict)
-  order    CustomerOrder? @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  company      Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  printer      Printer                 @relation(fields: [printerId], references: [id], onDelete: Restrict)
+  filament     Filament                @relation(fields: [filamentId], references: [id], onDelete: Restrict)
+  order        CustomerOrder?          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  filaments    ProductionJobFilament[]
+  projectFiles ProjectFile[]
 
   @@index([companyId, status])
   @@index([printerId, status])
+  @@index([orderId])
+}
+
+model ProductionJobFilament {
+  id             String   @id @default(uuid())
+  jobId          String
+  filamentId     String
+  slotNumber     Int?     @default(1)
+  plannedWeightG Int
+  actualWeightG  Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  job      ProductionJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  filament Filament      @relation(fields: [filamentId], references: [id], onDelete: Restrict)
+
+  @@unique([jobId, filamentId])
+  @@index([jobId])
+  @@index([filamentId])
+}
+
+model ProjectFile {
+  id              String   @id @default(uuid())
+  companyId       String
+  productionJobId String?
+  projectName     String
+  version         String?
+  category        String   @default("MODEL")
+  description     String?
+  tags            String[] @default([])
+  originalName    String
+  storedName      String   @unique
+  mimeType        String
+  sizeBytes       Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  productionJob ProductionJob? @relation(fields: [productionJobId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, projectName])
+  @@index([productionJobId])
+}
+
+model PricingEstimate {
+  id                    String   @id @default(uuid())
+  companyId             String
+  printerId             String?
+  printerName           String?
+  productName           String
+  marketplace           String?
+  materialCost          Decimal  @db.Decimal(10, 2)
+  machineCost           Decimal  @db.Decimal(10, 2)
+  laborCost             Decimal  @db.Decimal(10, 2)
+  additionalCost        Decimal  @db.Decimal(10, 2)
+  printDurationMinutes  Int      @default(0)
+  powerKw               Decimal  @default(0.35) @db.Decimal(7, 3)
+  electricityPrice      Decimal  @default(1) @db.Decimal(10, 3)
+  machineRatePerHour    Decimal  @default(1.5) @db.Decimal(10, 2)
+  laborRatePerHour      Decimal  @default(2.5) @db.Decimal(10, 2)
+  marginType            String   @default("MARGIN")
+  fixedPrice            Decimal  @default(0) @db.Decimal(10, 2)
+  paymentOptions        Json?
+  wastePercent          Decimal  @db.Decimal(5, 2)
+  marketplaceFeePercent Decimal  @db.Decimal(5, 2)
+  paymentFeePercent     Decimal  @db.Decimal(5, 2)
+  taxPercent            Decimal  @db.Decimal(5, 2)
+  marginPercent         Decimal  @db.Decimal(5, 2)
+  totalCost             Decimal  @db.Decimal(10, 2)
+  suggestedPrice        Decimal  @db.Decimal(10, 2)
+  estimatedProfit       Decimal  @db.Decimal(10, 2)
+  filamentLines         Json?
+  supplyLines           Json?
+  createdAt             DateTime @default(now())
+
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  printer Printer? @relation(fields: [printerId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
 }
 
 model Customer {
@@ -241,16 +380,532 @@ model CustomerOrder {
   description String
   quantity    Int         @default(1)
   unitPrice   Decimal     @db.Decimal(10, 2)
+  totalAmount Decimal?    @db.Decimal(10, 2)
   dueAt       DateTime?
   notes       String?
   status      OrderStatus @default(DRAFT)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  productionJob ProductionJob?
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer       Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  items          OrderItem[]
+  productionJobs ProductionJob[]
 
   @@index([companyId, status])
   @@index([customerId, createdAt])
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  description String
+  quantity    Int      @default(1)
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  order CustomerOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+enum MarketplaceSource {
+  MERCADO_LIVRE
+  SHOPEE
+  TIKTOK_SHOP
+  AMAZON
+  ETSY
+  ALIEXPRESS
+  OTHER
+}
+
+enum MarketplaceCategory3D {
+  DECORATION
+  TOOLS_MOUNTS
+  COSPLAY_COLLECTIBLES
+  REPLACEMENT_PARTS
+  GARDEN_POTS
+  LIGHTING
+  FIDGET_TOYS
+  FASHION_ACCESSORIES
+  TABLETOP_GAMES
+  ORGANIZATION
+  OTHER
+}
+
+enum CompetitionLevel {
+  LOW
+  MEDIUM
+  HIGH
+  SATURATED
+}
+
+enum MarketTrend {
+  UP
+  STABLE
+  DOWN
+}
+
+model MarketplaceProduct {
+  id                        String                @id @default(uuid())
+  companyId                 String?
+  source                    MarketplaceSource     @default(MERCADO_LIVRE)
+  externalId                String
+  externalUrl               String
+  title                     String
+  description               String?
+  sellerName                String?
+  sellerRating              Float?
+  sellerLocation            String?
+  imageUrl                  String?
+  currentPrice              Decimal               @db.Decimal(10, 2)
+  originalPrice             Decimal?              @db.Decimal(10, 2)
+  currency                  String                @default("BRL")
+  estimatedMonthlySales     Int                   @default(0)
+  totalSalesCount           Int                   @default(0)
+  rating                    Float?
+  reviewsCount              Int                   @default(0)
+  rankingPosition           Int?
+  searchKeyword             String?
+  
+  // Classificação & Enriquecimento por IA
+  is3DPrinted               Boolean               @default(true)
+  aiConfidence              Float                 @default(0.95)
+  category3D                MarketplaceCategory3D @default(OTHER)
+  estimatedMaterial         FilamentMaterial      @default(PLA)
+  manufacturingComplexity   String                @default("MEDIUM") // LOW, MEDIUM, HIGH, VERY_HIGH
+  estimatedWeightG          Float?
+  estimatedPrintTimeMinutes Int?
+  targetAudience            String?
+  seasonality               String?
+  recommendedPrinters       String[]              @default([])
+  
+  // Indicadores de Performance (0-100)
+  salesPotential            Int                   @default(50)
+  profitPotential           Int                   @default(50)
+  competitionLevel          CompetitionLevel      @default(MEDIUM)
+  trend                     MarketTrend           @default(STABLE)
+  marketSaturation          String                @default("MEDIUM") // LOW, MEDIUM, HIGH
+  manufacturingEase         String                @default("MODERATE") // EASY, MODERATE, CHALLENGING
+  
+  // Custos e Rentabilidade Estimada
+  estimatedUnitCost         Decimal?              @db.Decimal(10, 2)
+  estimatedNetProfit        Decimal?              @db.Decimal(10, 2)
+  profitMarginPercent       Decimal?              @db.Decimal(5, 2)
+  
+  lastScrapedAt             DateTime              @default(now())
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
+
+  company                   Company?              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  snapshots                 MarketplaceProductSnapshot[]
+
+  @@unique([source, externalId])
+  @@index([companyId, source])
+  @@index([category3D, salesPotential])
+  @@index([profitPotential, competitionLevel])
+  @@index([is3DPrinted, trend])
+}
+
+model MarketplaceProductSnapshot {
+  id              String             @id @default(uuid())
+  productId       String
+  capturedAt      DateTime           @default(now())
+  date            DateTime           @default(now())
+  price           Decimal            @db.Decimal(10, 2)
+  estimatedSales  Int                @default(0)
+  rating          Float?
+  reviewsCount    Int                @default(0)
+  rankingPosition Int?
+  salesPotential  Int?
+
+  product         MarketplaceProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, date])
+  @@index([capturedAt])
+}
+
+model MarketplaceSyncLog {
+  id              String            @id @default(uuid())
+  companyId       String?
+  startedAt       DateTime          @default(now())
+  finishedAt      DateTime?
+  status          String            @default("RUNNING") // RUNNING, SUCCESS, PARTIAL_FAILURE, FAILED
+  marketplace     String            @default("ALL")
+  totalProcessed  Int               @default(0)
+  total3DDetected Int               @default(0)
+  details         Json?
+  triggeredBy     String            @default("MANUAL") // CRON, MANUAL, AI_AGENT
+  errorMessage    String?
+
+  @@index([startedAt, status])
+}
+
+model WorkshopEquipment {
+  id              String    @id @default(uuid())
+  companyId       String
+  tabKey          String
+  name            String
+  brand           String?
+  model           String?
+  serialNumber    String?
+  status          String    @default("OPERATIONAL")
+  powerWatts      Int?
+  acquisitionDate DateTime?
+  purchasePrice   Decimal?  @db.Decimal(10, 2)
+  hourlyCost      Decimal?  @db.Decimal(10, 2)
+  location        String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([companyId, tabKey])
+}
+
+model CustomSectionTab {
+  id        String   @id @default(uuid())
+  companyId String
+  section   String
+  key       String
+  label     String
+  icon      String?
+  order     Int      @default(0)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, section])
+}
+
+model Product {
+  id           String   @id @default(uuid())
+  companyId    String
+  sku          String?
+  name         String
+  category     String?
+  imageUrl     String?
+  quantity     Int      @default(0)
+  minQuantity  Int      @default(0)
+  costPrice    Decimal  @default(0) @db.Decimal(10, 2)
+  sellingPrice Decimal  @default(0) @db.Decimal(10, 2)
+  weightGrams  Int?
+  dimensions   String?
+  status       String   @default("IN_STOCK")
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  consignmentItems     ConsignmentItem[]
+  consignmentStocks    ConsignmentStock[]
+  consignmentMovements ConsignmentMovement[]
+  consignmentSales     ConsignmentSale[]
+
+  @@index([companyId, name])
+}
+
+model LgpdConsentLog {
+  id          String   @id @default(uuid())
+  companyId   String
+  userId      String
+  userName    String?
+  userEmail   String?
+  termVersion String   @default("1.0")
+  accepted    Boolean  @default(true)
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, userId])
+}
+
+model UserLicense {
+  id                     String    @id @default(uuid())
+  userId                 String    @unique
+  companyId              String?
+  activationKey          String    // Formato: CTRL-FARM-XXXX-XXXX-XXXX
+  planCode               String    // STARTER, PROFESSIONAL, BUSINESS, ENTERPRISE, TRIAL, UNLIMITED_OWNER
+  planName               String
+  status                 String    @default("ACTIVE") // ACTIVE, EXPIRED, REVOKED, UNLICENSED
+  expiresAt              DateTime
+  allowedFeatures        Json
+  rsaSignature           String    @db.Text
+  lastValidatedAt        DateTime?
+  autoUpdate             Boolean   @default(true)
+  updateChannel          String    @default("STABLE") // STABLE, BETA
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company                Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([activationKey])
+  @@index([userId])
+  @@index([companyId])
+}
+
+// ==========================================
+// MÓDULO: GESTÃO DE CONSIGNADOS
+// ==========================================
+
+model ConsignmentLocation {
+  id                     String    @id @default(uuid())
+  companyId              String
+  name                   String    // Nome do estabelecimento
+  corporateName          String?   // Razão Social
+  tradeName              String?   // Nome Fantasia
+  contactPerson          String?   // Responsável
+  phone                  String?
+  whatsapp               String?
+  email                  String?
+  document               String?   // CPF/CNPJ
+  zipCode                String?   // CEP
+  address                String?   // Endereço
+  city                   String?
+  state                  String?
+  latitude               Float?
+  longitude              Float?
+  instagram              String?
+  facebook               String?
+  googleMapsUrl          String?
+  logoUrl                String?
+  photos                 String[]  @default([])
+  notes                  String?
+  status                 String    @default("ACTIVE") // ACTIVE, INACTIVE, BLOCKED
+  defaultCommissionRate  Decimal   @default(20.0) @db.Decimal(5, 2)
+  defaultCommissionType  String    @default("PERCENTAGE") // PERCENTAGE, FIXED
+  defaultCommissionValue Decimal   @default(0) @db.Decimal(10, 2)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  deletedAt              DateTime?
+
+  company      Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  consignments Consignment[]
+  stocks       ConsignmentStock[]
+  movements    ConsignmentMovement[]
+  sales        ConsignmentSale[]
+  settlements  ConsignmentSettlement[]
+
+  @@unique([companyId, name])
+  @@index([companyId, status])
+  @@index([companyId, city])
+  @@index([companyId, deletedAt])
+}
+
+model Consignment {
+  id                  String    @id @default(uuid())
+  companyId           String
+  locationId          String
+  responsibleUserId   String?
+  shipmentNumber      String    // Ex.: ENV-2026-0001
+  date                DateTime  @default(now())
+  status              String    @default("SENT") // DRAFT, SENT, CONFIRMED, CANCELLED
+  totalItems          Int       @default(0)
+  totalCost           Decimal   @default(0) @db.Decimal(10, 2)
+  totalEstimatedValue Decimal   @default(0) @db.Decimal(10, 2)
+  notes               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  company   Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  location  ConsignmentLocation   @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  items     ConsignmentItem[]
+  movements ConsignmentMovement[]
+
+  @@unique([companyId, shipmentNumber])
+  @@index([companyId, locationId])
+  @@index([companyId, status])
+  @@index([companyId, date])
+  @@index([companyId, deletedAt])
+}
+
+model ConsignmentItem {
+  id              String    @id @default(uuid())
+  companyId       String
+  consignmentId   String
+  productId       String?
+  productName     String
+  productSku      String?
+  quantity        Int
+  costPrice       Decimal   @default(0) @db.Decimal(10, 2)
+  suggestedPrice  Decimal   @default(0) @db.Decimal(10, 2)
+  sellingPrice    Decimal   @default(0) @db.Decimal(10, 2)
+  minPrice        Decimal   @default(0) @db.Decimal(10, 2)
+  commissionRate  Decimal   @default(0) @db.Decimal(5, 2)
+  commissionValue Decimal   @default(0) @db.Decimal(10, 2)
+  commissionType  String    @default("PERCENTAGE") // PERCENTAGE, FIXED
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  consignment Consignment @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
+  product     Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([consignmentId])
+  @@index([companyId, productId])
+}
+
+model ConsignmentStock {
+  id                String    @id @default(uuid())
+  companyId         String
+  locationId        String
+  productId         String?
+  productName       String
+  productSku        String?
+  quantityAvailable Int       @default(0)
+  quantitySold      Int       @default(0)
+  quantityReturned  Int       @default(0)
+  quantityDamaged   Int       @default(0)
+  sellingPrice      Decimal   @default(0) @db.Decimal(10, 2)
+  costPrice         Decimal   @default(0) @db.Decimal(10, 2)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  location ConsignmentLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  product  Product?            @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@unique([locationId, productName])
+  @@index([companyId, locationId])
+  @@index([companyId, productId])
+  @@index([companyId, quantityAvailable])
+}
+
+model ConsignmentMovement {
+  id            String    @id @default(uuid())
+  companyId     String
+  locationId    String
+  consignmentId String?
+  productId     String?
+  productName   String
+  type          String    // ENVIO, VENDA, DEVOLUCAO, PERDA, AVARIA, AJUSTE, TRANSFERENCIA
+  quantity      Int
+  unitCost      Decimal   @default(0) @db.Decimal(10, 2)
+  unitPrice     Decimal   @default(0) @db.Decimal(10, 2)
+  totalAmount   Decimal   @default(0) @db.Decimal(10, 2)
+  referenceType String?   // SHIPMENT, SALE, RETURN, ADJUSTMENT, TRANSFER
+  referenceId   String?
+  notes         String?
+  performedBy   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  location    ConsignmentLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  consignment Consignment?        @relation(fields: [consignmentId], references: [id], onDelete: SetNull)
+  product     Product?            @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, locationId, createdAt])
+  @@index([companyId, type])
+  @@index([companyId, referenceId])
+}
+
+model ConsignmentSale {
+  id                String    @id @default(uuid())
+  companyId         String
+  locationId        String
+  productId         String?
+  productName       String
+  quantity          Int
+  saleDate          DateTime  @default(now())
+  unitPrice         Decimal   @db.Decimal(10, 2)
+  grossAmount       Decimal   @db.Decimal(10, 2)
+  discount          Decimal   @default(0) @db.Decimal(10, 2)
+  netAmount         Decimal   @db.Decimal(10, 2)
+  partnerCommission Decimal   @default(0) @db.Decimal(10, 2)
+  farmRevenue       Decimal   @db.Decimal(10, 2)
+  costPrice         Decimal   @default(0) @db.Decimal(10, 2)
+  netProfit         Decimal   @default(0) @db.Decimal(10, 2)
+  settlementId      String?
+  notes             String?
+  registeredBy      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  location    ConsignmentLocation    @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  settlement  ConsignmentSettlement? @relation(fields: [settlementId], references: [id], onDelete: SetNull)
+  product     Product?               @relation(fields: [productId], references: [id], onDelete: SetNull)
+  commission  ConsignmentCommission?
+
+  @@index([companyId, locationId, saleDate])
+  @@index([companyId, settlementId])
+  @@index([companyId, deletedAt])
+}
+
+model ConsignmentSettlement {
+  id                String    @id @default(uuid())
+  companyId         String
+  locationId        String
+  settlementNumber  String    // Ex.: ACERTO-2026-0001
+  periodStart       DateTime
+  periodEnd         DateTime
+  totalSoldQuantity Int       @default(0)
+  totalSoldAmount   Decimal   @default(0) @db.Decimal(10, 2)
+  totalCommission   Decimal   @default(0) @db.Decimal(10, 2)
+  totalToReceive    Decimal   @default(0) @db.Decimal(10, 2)
+  totalPaid         Decimal   @default(0) @db.Decimal(10, 2)
+  balanceDue        Decimal   @default(0) @db.Decimal(10, 2)
+  dueDate           DateTime
+  status            String    @default("PENDING") // PENDING, PAID, OVERDUE, CANCELLED
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  location ConsignmentLocation  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  sales    ConsignmentSale[]
+  payments ConsignmentPayment[]
+
+  @@unique([companyId, settlementNumber])
+  @@index([companyId, locationId, status])
+  @@index([companyId, dueDate])
+  @@index([companyId, deletedAt])
+}
+
+model ConsignmentPayment {
+  id                    String    @id @default(uuid())
+  companyId             String
+  settlementId          String
+  locationId            String
+  paymentDate           DateTime  @default(now())
+  amount                Decimal   @db.Decimal(10, 2)
+  method                String    // PIX, DINHEIRO, CARTAO, TRANSFERENCIA
+  status                String    @default("CONFIRMED") // PENDING, CONFIRMED, CANCELLED
+  receiptUrl            String?
+  transactionReference  String?
+  notes                 String?
+  receivedBy            String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  deletedAt             DateTime?
+
+  settlement ConsignmentSettlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, settlementId])
+  @@index([companyId, paymentDate])
+  @@index([companyId, deletedAt])
+}
+
+model ConsignmentCommission {
+  id                String    @id @default(uuid())
+  companyId         String
+  locationId        String
+  saleId            String    @unique
+  ratePercent       Decimal?  @db.Decimal(5, 2)
+  fixedValue        Decimal?  @db.Decimal(10, 2)
+  calculatedAmount  Decimal   @db.Decimal(10, 2)
+  status            String    @default("CALCULATED") // CALCULATED, SETTLED, CANCELLED
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  sale ConsignmentSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, locationId])
+  @@index([companyId, status])
+  @@index([companyId, deletedAt])
 }

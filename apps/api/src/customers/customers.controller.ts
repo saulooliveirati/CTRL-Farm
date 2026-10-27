@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiCreatedResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 
 import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
@@ -17,18 +27,30 @@ export class CustomersController {
 
   @Get()
   @ApiOperation({ summary: "Lista clientes da empresa autenticada" })
-  findAll(@CurrentUser() user: AuthenticatedUser) { return this.customersService.findAll(user.companyId); }
+  findAll(@CurrentUser() user: AuthenticatedUser) {
+    return this.customersService.findAll(user.companyId);
+  }
 
   @Post()
   @ApiOperation({ summary: "Cadastra um cliente" })
   @ApiCreatedResponse({ description: "Cliente cadastrado." })
-  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateCustomerDto) { return this.customersService.create(user.companyId, dto); }
+  create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateCustomerDto) {
+    return this.customersService.create(user.companyId, dto);
+  }
 
   @Patch(":id")
   @ApiOperation({ summary: "Atualiza um cliente" })
-  update(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string, @Body() dto: UpdateCustomerDto) { return this.customersService.update(user.companyId, id, dto); }
+  update(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCustomerDto,
+  ) {
+    return this.customersService.update(user.companyId, id, dto);
+  }
 
   @Delete(":id")
   @ApiOperation({ summary: "Remove cliente sem pedidos vinculados" })
-  remove(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string) { return this.customersService.remove(user.companyId, id); }
+  remove(@CurrentUser() user: AuthenticatedUser, @Param("id", ParseUUIDPipe) id: string) {
+    return this.customersService.remove(user.companyId, id);
+  }
 }

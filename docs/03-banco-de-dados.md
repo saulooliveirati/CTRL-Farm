@@ -6,10 +6,14 @@ O schema é `prisma/schema.prisma`; toda alteração deve vir acompanhada de uma
 
 - `Company` é o tenant raiz. Usuários, fornecedores, impressoras, bobinas, materiais, clientes, pedidos e produções pertencem a uma empresa.
 - `Supplier` centraliza os dados do fornecedor e pode estar associado a impressoras, bobinas e itens do estoque geral.
+- `Printer` registra especificações do equipamento, status, bico, número de extrusoras, horas de uso, imagem e fornecedor opcional.
 - `InventoryMaterial` registra equipamentos auxiliares, insumos, peças, ferramentas, embalagens e outros itens com unidade, saldo, estoque mínimo, custo e fornecedor.
 - `Customer` possui zero ou mais `CustomerOrder`; documento, quando informado, é único dentro da empresa.
 - `CustomerOrder` registra descrição, quantidade, preço unitário, prazo e status. Tem no máximo uma `ProductionJob` vinculada.
 - `ProductionJob` aponta para uma impressora, uma bobina e opcionalmente um pedido. Registra peso planejado/real, tempo previsto, início, conclusão e duração ativa acumulada (desconta pausas). Produções concluídas podem ser arquivadas sem perder o histórico.
+- `ProjectFile` cataloga arquivos por empresa, projeto, versão, categoria e tags; cada arquivo pode ser vinculado a uma ordem de produção. O binário fica em armazenamento privado, não no banco nem no Git.
+- `PricingEstimate` guarda uma fotografia do produto, impressora, tempo, potência, tarifa elétrica, depreciação, mão de obra, taxas, margem ou preço fixo, meios de pagamento, linhas de filamentos e insumos, custo total, preço sugerido e lucro previsto. Cada simulação pertence à empresa autenticada.
+- `Camera` guarda identificação, IP local, qualidade RTSP, caminho de publicação WebRTC e credenciais da Conta da câmera cifradas com AES-256-GCM. Os campos cifrados nunca são retornados pela API; as câmeras são isoladas por empresa. `CAMERA_ENCRYPTION_KEY` deve ser preservada para manter as senhas descriptografáveis entre reinícios e atualizações.
 - `Filament.currentWeightG` é atualizado atomicamente ao concluir uma produção.
 - O estoque geral alerta quando o saldo alcança ou fica abaixo do mínimo; bobinas continuam com controle próprio em gramas, integrado à produção.
 - Uma impressora ou bobina referenciada por histórico de produção não pode ser apagada (`Restrict`). Clientes com pedidos e pedidos com produção vinculada também são preservados. A API informa o motivo em vez de expor erro interno.

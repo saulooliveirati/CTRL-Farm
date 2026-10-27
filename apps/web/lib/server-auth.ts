@@ -30,3 +30,5 @@ export async function getCurrentUser(): Promise<PublicUser | null> {
     return null;
   }
 }
+
+export const getAuthenticatedUser = getCurrentUser;

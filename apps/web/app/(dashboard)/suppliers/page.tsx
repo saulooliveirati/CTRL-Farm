@@ -1,7 +1,23 @@
-import { SuppliersManager } from "@/components/suppliers/suppliers-manager";
+import { ContactsHubManager } from "@/components/contacts/contacts-hub-manager";
+import { getCustomersForPage } from "@/lib/server-customers";
 import { getSuppliersForPage } from "@/lib/server-suppliers";
+import { getAuthenticatedUser } from "@/lib/server-auth";
 
 export default async function SuppliersPage() {
-  const { suppliers, error } = await getSuppliersForPage();
-  return <SuppliersManager initialSuppliers={suppliers} initialError={error} />;
+  const [user, { customers, error: custErr }, { suppliers, error: suppErr }] = await Promise.all([
+    getAuthenticatedUser(),
+    getCustomersForPage(),
+    getSuppliersForPage(),
+  ]);
+
+  return (
+    <ContactsHubManager
+      currentUserRole={user?.role}
+      initialCustomers={customers}
+      initialSuppliers={suppliers}
+      initialCustomerError={custErr}
+      initialSupplierError={suppErr}
+      defaultTab="suppliers"
+    />
+  );
 }

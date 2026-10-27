@@ -1,0 +1,22 @@
+logLevel: info
+api: yes
+apiAddress: 0.0.0.0:9997
+rtsp: no
+hls: no
+webrtc: yes
+webrtcAddress: 0.0.0.0:8889
+webrtcLocalUDPAddress: 0.0.0.0:8189
+webrtcAdditionalHosts:
+  - 127.0.0.1
+paths: {}
+authInternalUsers:
+  - user: ctrlfarm-api
+    pass: set-by-compose-environment
+    ips: []
+    permissions:
+      - action: api
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: read
