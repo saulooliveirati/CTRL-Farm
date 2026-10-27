@@ -10,7 +10,7 @@ interface WidgetCatalogModalProps {
 
 interface CatalogItem {
   id: string;
-  category: "metrics" | "charts" | "tables" | "operational";
+  category: "industrial" | "metrics" | "charts" | "tables" | "operational";
   title: string;
   description: string;
   icon: string;
@@ -24,7 +24,131 @@ export function WidgetCatalogModal({ onAdd, onClose }: WidgetCatalogModalProps) 
   const [search, setSearch] = useState("");
 
   const catalogItems: CatalogItem[] = [
-    // Métricas (KPIs)
+    // Telemetria Industrial Moderna
+    {
+      id: "cat-kpi-active-printers",
+      category: "industrial",
+      title: "Parque de Impressoras (KPI)",
+      description: "Métrica em tempo real: ocupação da frota (ex: 18/24, 75%) e barra de capacidade.",
+      icon: "🖨️",
+      defaultColSpan: 1,
+      previewType: "Industrial Dark Mode",
+      createWidget: () => ({
+        id: `kpi-printers-${Date.now()}`,
+        type: "kpi-active-printers",
+        title: "Parque de Impressoras",
+        colSpan: 1,
+        visible: true,
+        themeTone: "emerald",
+      }),
+    },
+    {
+      id: "cat-kpi-production-queue",
+      category: "industrial",
+      title: "Fila de Produção (KPI)",
+      description: "Total de ordens na fila, trabalhos adicionados hoje e estimativa de horas.",
+      icon: "⏳",
+      defaultColSpan: 1,
+      previewType: "Industrial Dark Mode",
+      createWidget: () => ({
+        id: `kpi-queue-${Date.now()}`,
+        type: "kpi-production-queue",
+        title: "Fila de Produção",
+        colSpan: 1,
+        visible: true,
+        themeTone: "blue",
+      }),
+    },
+    {
+      id: "cat-kpi-filament-stock",
+      category: "industrial",
+      title: "Estoque de Insumos (KPI)",
+      description: "Saldo total disponível em kg e badge inteligente de alerta para bobinas baixas.",
+      icon: "◉",
+      defaultColSpan: 1,
+      previewType: "Industrial Dark Mode",
+      createWidget: () => ({
+        id: `kpi-filament-${Date.now()}`,
+        type: "kpi-filament-stock",
+        title: "Estoque de Insumos",
+        colSpan: 1,
+        visible: true,
+        themeTone: "amber",
+      }),
+    },
+    {
+      id: "cat-kpi-efficiency",
+      category: "industrial",
+      title: "Eficiência da Farm (KPI)",
+      description: "Eficiência operacional calculada com mini sparkline SVG verde neon.",
+      icon: "📈",
+      defaultColSpan: 1,
+      previewType: "Industrial Dark Mode",
+      createWidget: () => ({
+        id: `kpi-eff-${Date.now()}`,
+        type: "kpi-efficiency",
+        title: "Eficiência da Farm",
+        colSpan: 1,
+        visible: true,
+        themeTone: "emerald",
+      }),
+    },
+    {
+      id: "cat-printer-fleet-grid",
+      category: "industrial",
+      title: "Grid de Frota com Câmeras & Telemetria",
+      description: "Cards individuais com anel de progresso neon, temperaturas de bico/mesa e feed de câmera.",
+      icon: "📹",
+      defaultColSpan: 4,
+      previewType: "Alta Densidade",
+      createWidget: () => ({
+        id: `printer-fleet-${Date.now()}`,
+        type: "printer-fleet-grid",
+        title: "Parque de Impressoras 3D",
+        subtitle: "Telemetria em tempo real, temperaturas e feeds de câmera",
+        colSpan: 4,
+        visible: true,
+        themeTone: "emerald",
+      }),
+    },
+    {
+      id: "cat-production-queue-list",
+      category: "industrial",
+      title: "Fila de Impressão Prioritária",
+      description: "Lista com badges coloridos por polímero (PLA, PETG, ABS, Resina) e estimativas.",
+      icon: "📑",
+      defaultColSpan: 2,
+      previewType: "Lista Compacta",
+      createWidget: () => ({
+        id: `queue-list-${Date.now()}`,
+        type: "production-queue-list",
+        title: "Fila de Impressão Prioritária",
+        subtitle: "Ordens aguardando processamento e materiais",
+        colSpan: 2,
+        visible: true,
+        themeTone: "blue",
+      }),
+    },
+    {
+      id: "cat-filament-telemetry-chart",
+      category: "industrial",
+      title: "Consumo Semanal de Filamento",
+      description: "Gráfico de área e linha suave Bézier em verde neon com métricas diárias.",
+      icon: "📊",
+      defaultColSpan: 2,
+      previewType: "Gráfico SVG Suave",
+      createWidget: () => ({
+        id: `filament-chart-${Date.now()}`,
+        type: "filament-telemetry-chart",
+        title: "Consumo Semanal de Filamento",
+        subtitle: "Telemetria de insumo consumido por dia",
+        colSpan: 2,
+        visible: true,
+        themeTone: "emerald",
+      }),
+    },
+
+    // Métricas Básicas (KPIs)
     {
       id: "cat-kpi-filaments-kg",
       category: "metrics",
@@ -273,7 +397,7 @@ export function WidgetCatalogModal({ onAdd, onClose }: WidgetCatalogModalProps) 
       id: "cat-op-fleet",
       category: "operational",
       title: "Frota de Equipamentos & Telemetria",
-      description: "Painel completo de status da farm com barras proporcionais.",
+      description: "Painel de status da farm com barras proporcionais.",
       icon: "🖨️",
       defaultColSpan: 2,
       previewType: "Painel de Máquinas",
@@ -309,10 +433,11 @@ export function WidgetCatalogModal({ onAdd, onClose }: WidgetCatalogModalProps) 
 
   const categories = [
     { id: "all", label: "Todos os Cards" },
+    { id: "industrial", label: "⚡ Telemetria Industrial" },
     { id: "metrics", label: "📊 Indicadores (KPIs)" },
     { id: "charts", label: "📈 Gráficos Analíticos" },
     { id: "tables", label: "📑 Tabelas & Listas" },
-    { id: "operational", label: "⚡ Operacional & Frota" },
+    { id: "operational", label: "🏭 Operacional & Frota" },
   ];
 
   const filtered = catalogItems.filter((item) => {
@@ -335,20 +460,20 @@ export function WidgetCatalogModal({ onAdd, onClose }: WidgetCatalogModalProps) 
         role="dialog"
         aria-modal="true"
         aria-labelledby="catalog-title"
-        className="my-auto max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-slate-700 bg-[#0f1422] shadow-2xl flex flex-col"
+        className="my-auto max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl border border-[#263246] bg-[#101827] shadow-2xl flex flex-col"
       >
         {/* Header estilo Elementor Widget Drawer */}
-        <header className="flex flex-wrap items-center justify-between border-b border-slate-800 bg-[#090d16] px-5 py-3.5 gap-3">
+        <header className="flex flex-wrap items-center justify-between border-b border-[#263246] bg-[#0a0f1b] px-5 py-3.5 gap-3">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/20 text-emerald-400 font-bold text-sm border border-emerald-500/30">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#20c997]/15 text-[#20c997] font-bold text-sm border border-[#20c997]/30">
               ＋
             </span>
             <div>
-              <h2 id="catalog-title" className="text-sm font-bold text-white tracking-wide">
-                Biblioteca de Cards & Widgets (Elementor Style)
+              <h2 id="catalog-title" className="text-sm font-bold text-slate-100 tracking-wide">
+                Biblioteca de Cards & Widgets
               </h2>
-              <p className="text-[10px] text-slate-400">
-                Selecione um bloco para adicionar à sua Dashboard personalizada
+              <p className="text-[10px] text-slate-400 font-mono">
+                Selecione um bloco modular para adicionar à sua Dashboard personalizada
               </p>
             </div>
           </div>
@@ -358,12 +483,12 @@ export function WidgetCatalogModal({ onAdd, onClose }: WidgetCatalogModalProps) 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar card por nome..."
-              className="h-8 w-48 sm:w-60 rounded-lg border border-slate-700 bg-[#060910] px-2.5 text-xs text-white outline-none focus:border-emerald-400"
+              className="h-8 w-48 sm:w-60 rounded-xl border border-[#263246] bg-[#0a0f1b] px-3 text-xs text-white outline-none focus:border-[#20c997]"
             />
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
+              className="rounded-lg p-1 text-slate-400 hover:bg-[#151f30] hover:text-white"
             >
               ✕
             </button>
@@ -371,7 +496,7 @@ export function WidgetCatalogModal({ onAdd, onClose }: WidgetCatalogModalProps) 
         </header>
 
         {/* Barra de Categorias */}
-        <div className="flex items-center gap-1.5 overflow-x-auto border-b border-slate-800 bg-[#0b0f1a] px-5 py-2 text-xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto border-b border-[#263246] bg-[#0d1422] px-5 py-2 text-xs">
           {categories.map((c) => (
             <button
               key={c.id}
@@ -379,8 +504,8 @@ export function WidgetCatalogModal({ onAdd, onClose }: WidgetCatalogModalProps) 
               onClick={() => setSelectedCategory(c.id)}
               className={`rounded-lg px-3 py-1 font-semibold whitespace-nowrap transition ${
                 selectedCategory === c.id
-                  ? "bg-emerald-500 text-slate-950 font-bold shadow-sm"
-                  : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                  ? "bg-[#20c997] text-[#06251e] font-bold shadow-sm"
+                  : "text-slate-400 hover:bg-[#151f30] hover:text-white"
               }`}
             >
               {c.label}
@@ -389,19 +514,19 @@ export function WidgetCatalogModal({ onAdd, onClose }: WidgetCatalogModalProps) 
         </div>
 
         {/* Grid de Blocos do Catálogo */}
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-5 bg-[#0a0f1b]/60">
           <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((item) => (
               <div
                 key={item.id}
-                className="group relative flex flex-col justify-between rounded-xl border border-slate-800 bg-[#070b13] p-4 transition-all duration-200 hover:border-emerald-500/50 hover:bg-[#0b101c] hover:shadow-lg hover:-translate-y-0.5"
+                className="group relative flex flex-col justify-between rounded-xl border border-[#263246] bg-[#101827] p-4 transition-all duration-200 hover:border-[#20c997]/60 hover:bg-[#151f30] hover:shadow-lg hover:-translate-y-0.5"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-800/80 text-lg border border-slate-700 text-emerald-400 group-hover:border-emerald-400/50 group-hover:scale-105 transition-all">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#0a0f1b] text-lg border border-[#263246] text-[#20c997] group-hover:border-[#20c997]/50 group-hover:scale-105 transition-all">
                       {item.icon}
                     </span>
-                    <span className="rounded-full bg-slate-800/90 px-2 py-0.5 text-[9px] font-mono text-slate-400 border border-slate-700">
+                    <span className="rounded-full bg-[#0a0f1b] px-2 py-0.5 text-[9px] font-mono text-slate-400 border border-[#263246]">
                       {item.defaultColSpan === 1
                         ? "1 Col (25%)"
                         : item.defaultColSpan === 2
@@ -410,13 +535,13 @@ export function WidgetCatalogModal({ onAdd, onClose }: WidgetCatalogModalProps) 
                     </span>
                   </div>
 
-                  <h3 className="mt-3 font-bold text-xs text-white group-hover:text-emerald-300 transition-colors">
+                  <h3 className="mt-3 font-bold text-xs text-slate-100 group-hover:text-[#20c997] transition-colors">
                     {item.title}
                   </h3>
                   <p className="mt-1 text-[11px] text-slate-400 line-clamp-2">{item.description}</p>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between border-t border-slate-800/80 pt-3">
+                <div className="mt-4 flex items-center justify-between border-t border-[#263246] pt-3">
                   <span className="text-[10px] text-slate-500 font-mono">{item.previewType}</span>
                   <button
                     type="button"
@@ -424,7 +549,7 @@ export function WidgetCatalogModal({ onAdd, onClose }: WidgetCatalogModalProps) 
                       onAdd(item.createWidget());
                       onClose();
                     }}
-                    className="flex items-center gap-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-1 text-[11px] font-bold text-emerald-300 hover:bg-emerald-500/40 active:scale-95 transition"
+                    className="flex items-center gap-1 rounded-lg bg-[#20c997]/15 border border-[#20c997]/40 px-2.5 py-1 text-[11px] font-bold text-[#20c997] hover:bg-[#20c997]/30 active:scale-95 transition"
                   >
                     <span>＋</span>
                     <span>Adicionar</span>
@@ -442,14 +567,14 @@ export function WidgetCatalogModal({ onAdd, onClose }: WidgetCatalogModalProps) 
         </div>
 
         {/* Footer */}
-        <footer className="flex items-center justify-between border-t border-slate-800 bg-[#090d16] px-5 py-3 text-xs text-slate-500">
-          <span>
-            {catalogItems.length} tipos de cards e blocos disponíveis para personalização.
+        <footer className="flex items-center justify-between border-t border-[#263246] bg-[#0a0f1b] px-5 py-3 text-xs text-slate-500">
+          <span className="font-mono">
+            {catalogItems.length} tipos de cards e blocos disponíveis.
           </span>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+            className="rounded-lg border border-[#263246] px-3 py-1.5 text-xs text-slate-300 hover:bg-[#151f30]"
           >
             Fechar
           </button>

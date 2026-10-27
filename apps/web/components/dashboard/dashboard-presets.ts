@@ -1,6 +1,96 @@
 import type { DashboardWidgetConfig, PresetTemplate } from "./dashboard-types";
 
 export const defaultWidgets: DashboardWidgetConfig[] = [
+  // Linha 1: 4 KPIs Industriais Modernos
+  {
+    id: "kpi-active-printers-main",
+    type: "kpi-active-printers",
+    title: "Parque de Impressoras",
+    colSpan: 1,
+    visible: true,
+    themeTone: "emerald",
+  },
+  {
+    id: "kpi-production-queue-main",
+    type: "kpi-production-queue",
+    title: "Fila de Produção",
+    colSpan: 1,
+    visible: true,
+    themeTone: "blue",
+  },
+  {
+    id: "kpi-filament-stock-main",
+    type: "kpi-filament-stock",
+    title: "Estoque de Insumos",
+    colSpan: 1,
+    visible: true,
+    themeTone: "amber",
+  },
+  {
+    id: "kpi-efficiency-main",
+    type: "kpi-efficiency",
+    title: "Eficiência da Farm",
+    colSpan: 1,
+    visible: true,
+    themeTone: "emerald",
+  },
+
+  // Linha 2: Parque de Impressoras 3D com Telemetria (4 Colunas)
+  {
+    id: "printer-fleet-grid-main",
+    type: "printer-fleet-grid",
+    title: "Parque de Impressoras 3D",
+    subtitle: "Telemetria em tempo real, temperaturas e feeds de câmera",
+    colSpan: 4,
+    visible: true,
+    themeTone: "emerald",
+  },
+
+  // Linha 3: Fila Prioritária (2 Cols) + Gráfico de Consumo Semanal (2 Cols)
+  {
+    id: "production-queue-list-main",
+    type: "production-queue-list",
+    title: "Fila de Impressão Prioritária",
+    subtitle: "Ordens aguardando processamento e materiais",
+    colSpan: 2,
+    visible: true,
+    themeTone: "blue",
+  },
+  {
+    id: "filament-telemetry-chart-main",
+    type: "filament-telemetry-chart",
+    title: "Consumo Semanal de Filamento",
+    subtitle: "Telemetria de insumo consumido por dia",
+    colSpan: 2,
+    visible: true,
+    themeTone: "emerald",
+  },
+
+  // Linha 4: Acesso Rápido + Tabela de Pedidos
+  {
+    id: "quick-actions-bar",
+    type: "quick-actions",
+    title: "Acesso Rápido",
+    subtitle: "Atalhos operacionais rápidos",
+    colSpan: 1,
+    visible: true,
+    themeTone: "violet",
+  },
+  {
+    id: "orders-recent-table",
+    type: "data-table",
+    title: "Orçamentos e Pedidos Recentes",
+    subtitle: "Acompanhe clientes e pedidos cadastrados",
+    colSpan: 3,
+    visible: true,
+    tableEntity: "orders",
+    tableFormat: "table",
+    limit: 5,
+    themeTone: "violet",
+  },
+];
+
+export const classicBalancedWidgets: DashboardWidgetConfig[] = [
   // Linha 1: 4 KPIs Principais
   {
     id: "kpi-filaments-stock",
@@ -90,7 +180,7 @@ export const defaultWidgets: DashboardWidgetConfig[] = [
     themeTone: "emerald",
   },
   {
-    id: "quick-actions-bar",
+    id: "quick-actions-bar-classic",
     type: "quick-actions",
     title: "Acesso Rápido",
     subtitle: "Atalhos operacionais rápidos",
@@ -101,7 +191,7 @@ export const defaultWidgets: DashboardWidgetConfig[] = [
 
   // Linha 4: Orçamentos Recentes
   {
-    id: "orders-recent-table",
+    id: "orders-recent-table-classic",
     type: "data-table",
     title: "Orçamentos e Pedidos Recentes",
     subtitle: "Acompanhe clientes e pedidos cadastrados",
@@ -116,11 +206,18 @@ export const defaultWidgets: DashboardWidgetConfig[] = [
 
 export const presetTemplates: PresetTemplate[] = [
   {
+    id: "farm-industrial-telemetry",
+    name: "Industrial Dark Mode (Alta Telemetria)",
+    description: "Visualização moderna de alta densidade com telemetria ao vivo, câmeras, anéis de status e sparklines.",
+    icon: "⚡",
+    widgets: defaultWidgets,
+  },
+  {
     id: "farm-balanced",
-    name: "Equilibrado (Padrão Farm)",
+    name: "Equilibrado (Clássico Farm)",
     description: "Visualização completa e balanceada entre máquinas, produção, estoque e pedidos.",
     icon: "⚖️",
-    widgets: defaultWidgets,
+    widgets: classicBalancedWidgets,
   },
   {
     id: "shopfloor-production",
@@ -312,7 +409,7 @@ export const presetTemplates: PresetTemplate[] = [
       {
         id: "kpi-filaments-value",
         type: "kpi-stat",
-        title: "Valor Estimado",
+        title: "Patrimônio Estimado",
         colSpan: 1,
         visible: true,
         kpiMetric: "filaments_value",

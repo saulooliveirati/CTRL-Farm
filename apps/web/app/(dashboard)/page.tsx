@@ -1,4 +1,4 @@
-import { DashboardClient } from "@/components/dashboard/dashboard-client";
+import { DashboardView } from "@/components/dashboard/dashboard-view";
 import { getCurrentUser } from "@/lib/server-auth";
 import { getPrintersForPage } from "@/lib/server-printers";
 import { getFilamentsForPage } from "@/lib/server-filaments";
@@ -18,12 +18,12 @@ export default async function DashboardPage() {
     ]);
 
   return (
-    <DashboardClient
-      initialPrinters={printerData.printers ?? []}
-      initialFilaments={filamentData.filaments ?? []}
-      initialJobs={productionData.jobs ?? []}
-      initialOrders={orderData.orders ?? []}
-      initialCameras={cameraData.cameras ?? []}
+    <DashboardView
+      printers={printerData.printers ?? []}
+      filaments={filamentData.filaments ?? []}
+      jobs={productionData.jobs ?? []}
+      orders={orderData.orders ?? []}
+      cameras={cameraData.cameras ?? []}
       userId={user?.id ?? "default"}
       isAdmin={user?.role === "ADMIN"}
     />

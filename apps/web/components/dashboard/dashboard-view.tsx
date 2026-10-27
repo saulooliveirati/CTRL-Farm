@@ -6,6 +6,7 @@ import type { FilamentRecord } from "@/lib/server-filaments";
 import type { OrderRecord } from "@/lib/server-orders";
 import type { PrinterRecord } from "@/lib/server-printers";
 import type { ProductionRecord } from "@/lib/server-production";
+import type { CameraRecord } from "@/lib/server-cameras";
 import { defaultWidgets, presetTemplates } from "./dashboard-presets";
 import type { DashboardWidgetConfig } from "./dashboard-types";
 import { DashboardWidgetCard } from "./dashboard-widget-card";
@@ -50,6 +51,7 @@ export function DashboardView({
   filaments,
   jobs,
   orders,
+  cameras = [],
   userId,
   isAdmin,
 }: {
@@ -57,6 +59,7 @@ export function DashboardView({
   filaments: FilamentRecord[];
   jobs: ProductionRecord[];
   orders: OrderRecord[];
+  cameras?: CameraRecord[];
   userId: string;
   isAdmin: boolean;
 }) {
@@ -73,6 +76,7 @@ export function DashboardView({
   const [liveFilaments, setLiveFilaments] = useState<FilamentRecord[]>(filaments);
   const [liveJobs, setLiveJobs] = useState<ProductionRecord[]>(jobs);
   const [liveOrders, setLiveOrders] = useState<OrderRecord[]>(orders);
+  const [liveCameras, setLiveCameras] = useState<CameraRecord[]>(cameras);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
   const [autoRefreshIntervalSec, setAutoRefreshIntervalSec] = useState<number>(30);
@@ -89,15 +93,19 @@ export function DashboardView({
   useEffect(() => {
     setLiveOrders(orders);
   }, [orders]);
+  useEffect(() => {
+    if (cameras) setLiveCameras(cameras);
+  }, [cameras]);
 
   const refreshDashboardData = useCallback(async (silent = true) => {
     if (!silent) setIsRefreshing(true);
     try {
-      const [pRes, fRes, jRes, oRes] = await Promise.allSettled([
+      const [pRes, fRes, jRes, oRes, cRes] = await Promise.allSettled([
         fetch("/api/printers").then((r) => (r.ok ? r.json() : null)),
         fetch("/api/filaments").then((r) => (r.ok ? r.json() : null)),
         fetch("/api/production").then((r) => (r.ok ? r.json() : null)),
         fetch("/api/orders").then((r) => (r.ok ? r.json() : null)),
+        fetch("/api/cameras").then((r) => (r.ok ? r.json() : null)),
       ]);
 
       if (pRes.status === "fulfilled" && pRes.value) {
@@ -115,6 +123,10 @@ export function DashboardView({
       if (oRes.status === "fulfilled" && oRes.value) {
         const val = oRes.value.data ?? oRes.value.orders ?? oRes.value;
         if (Array.isArray(val)) setLiveOrders(val);
+      }
+      if (cRes.status === "fulfilled" && cRes.value) {
+        const val = cRes.value.data ?? cRes.value.cameras ?? cRes.value;
+        if (Array.isArray(val)) setLiveCameras(val);
       }
       setLastRefreshedAt(new Date());
     } catch {
@@ -221,48 +233,50 @@ export function DashboardView({
   return (
     <div className="mx-auto max-w-[1650px] space-y-6 sm:space-y-8 text-slate-100 pb-16">
       {/* ================= HEADER PRINCIPAL ================= */}
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-slate-800/80 pb-5">
-        <div>
+      <header className="flex flex-wrap items-center justify-between gap-4 p-5 rounded-2xl bg-[#101827] border border-[#263246] shadow-xl relative overflow-hidden">
+        {/* Glow de fundo */}
+        <div className="absolute top-0 right-0 w-96 h-full bg-gradient-to-l from-[#20c997]/5 to-transparent pointer-events-none" />
+
+        <div className="relative z-10">
           <div className="flex items-center gap-2">
-            <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">
-              Painel de Controle Central
+            <span className="flex h-2.5 w-2.5 rounded-full bg-[#20c997] animate-pulse" />
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#20c997] font-mono">
+              Painel de Controle Central • Telemetria Ativa
             </p>
-            <span className="rounded-md border border-emerald-500/30 bg-emerald-950/40 px-2 py-0.5 text-[9px] font-bold text-emerald-300">
+            <span className="rounded-md border border-[#20c997]/30 bg-[#20c997]/10 px-2 py-0.5 text-[9px] font-bold text-[#20c997] font-mono">
               {planName}
             </span>
           </div>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-100 sm:text-3xl">
             Visão Geral da Farm
           </h1>
-          <p className="mt-1 text-xs text-slate-400">
-            Acompanhe a operação em tempo real com layout 100% personalizável (Elementor / Divi
-            Style).
+          <p className="mt-0.5 text-xs text-slate-400 font-mono">
+            Acompanhe a operação em tempo real com layout modular e flexível.
           </p>
         </div>
 
         {/* Ações do Topo */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5 relative z-10">
           {/* Indicador e Controle de Atualização Automática Constante */}
-          <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-[#070b13] px-3 py-2 text-xs shadow-inner">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-slate-300 hidden sm:inline text-[11px]">Auto-refresh:</span>
+          <div className="flex items-center gap-2 rounded-xl border border-[#263246] bg-[#0a0f1b] px-3 py-2 text-xs shadow-inner">
+            <span className="flex h-2 w-2 rounded-full bg-[#20c997] animate-pulse" />
+            <span className="text-slate-400 hidden sm:inline text-[11px] font-mono">Auto-refresh:</span>
             <select
               value={autoRefreshIntervalSec}
               onChange={(e) => setAutoRefreshIntervalSec(Number(e.target.value))}
-              className="bg-transparent text-emerald-400 font-semibold outline-none cursor-pointer text-xs"
+              className="bg-transparent text-[#20c997] font-mono font-semibold outline-none cursor-pointer text-xs"
               title="Intervalo de atualização automática da Dashboard"
             >
-              <option value={30} className="bg-slate-900 text-white">
+              <option value={30} className="bg-[#101827] text-slate-200">
                 30 seg
               </option>
-              <option value={60} className="bg-slate-900 text-white">
+              <option value={60} className="bg-[#101827] text-slate-200">
                 1 min
               </option>
-              <option value={180} className="bg-slate-900 text-white">
+              <option value={180} className="bg-[#101827] text-slate-200">
                 3 min
               </option>
-              <option value={300} className="bg-slate-900 text-white">
+              <option value={300} className="bg-[#101827] text-slate-200">
                 5 min (Padrão)
               </option>
             </select>
@@ -270,10 +284,10 @@ export function DashboardView({
               type="button"
               disabled={isRefreshing}
               onClick={() => void refreshDashboardData(false)}
-              className="ml-1 text-slate-400 hover:text-white transition disabled:opacity-50"
+              className="ml-1 text-slate-400 hover:text-[#20c997] transition disabled:opacity-50"
               title={`Última atualização às ${lastRefreshedAt.toLocaleTimeString("pt-BR")}. Clique para atualizar agora.`}
             >
-              <span className={`inline-block ${isRefreshing ? "animate-spin" : ""}`}>↺</span>
+              <span className={`inline-block ${isRefreshing ? "animate-spin text-[#20c997]" : ""}`}>↺</span>
             </button>
           </div>
 
@@ -281,10 +295,10 @@ export function DashboardView({
           <button
             type="button"
             onClick={() => setIsBuilderMode(!isBuilderMode)}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition shadow-sm border ${
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition shadow-sm border ${
               isBuilderMode
-                ? "border-emerald-400 bg-emerald-400 text-slate-950 ring-2 ring-emerald-400/50"
-                : "border-slate-700 bg-slate-800 text-slate-200 hover:border-emerald-400 hover:text-white"
+                ? "border-[#20c997] bg-[#20c997] text-[#06251e] font-bold ring-2 ring-[#20c997]/40 shadow-lg shadow-[#20c997]/20"
+                : "border-[#263246] bg-[#151f30] text-slate-200 hover:border-[#20c997]/40 hover:text-white"
             }`}
           >
             <span>{isBuilderMode ? "✓ Concluir Edição" : "🎨 Personalizar Layout"}</span>
@@ -292,7 +306,7 @@ export function DashboardView({
 
           <Link
             href="/production"
-            className="rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-slate-950 transition hover:bg-emerald-400 shadow"
+            className="rounded-xl bg-[#20c997] hover:bg-[#1db889] px-4 py-2 text-xs font-bold text-[#06251e] transition shadow-lg shadow-[#20c997]/20"
           >
             ＋ Nova produção
           </Link>
@@ -301,22 +315,21 @@ export function DashboardView({
 
       {/* ================= BARRA DE FERRAMENTAS DO CONSTRUTOR (ELEMENTOR / DIVI STYLE) ================= */}
       {isBuilderMode && (
-        <section className="animate-in fade-in zoom-in-95 rounded-2xl border border-emerald-500/50 bg-[#0d1624] p-4 shadow-xl backdrop-blur-md">
+        <section className="animate-in fade-in zoom-in-95 rounded-2xl border border-[#20c997]/40 bg-[#101827] p-4 shadow-xl backdrop-blur-md">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-500/20 text-emerald-400 text-lg border border-emerald-500/40">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#20c997]/15 text-[#20c997] text-base border border-[#20c997]/30">
                 🛠️
               </span>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-white">Modo Construtor Visual Ativo</h3>
-                  <span className="rounded-full bg-emerald-950 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-800">
+                  <h3 className="text-sm font-bold text-slate-100">Modo Construtor Visual Ativo</h3>
+                  <span className="rounded-full bg-[#20c997]/10 px-2 py-0.5 text-[10px] font-mono font-bold text-[#20c997] border border-[#20c997]/30">
                     Live Page Builder
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400">
-                  Clique em qualquer card para configurar suas métricas, formato de tabela, tipo de
-                  gráfico ou largura.
+                  Clique em qualquer card para configurar métricas, formato de tabela, tipo de gráfico ou largura (25%, 50%, 75%, 100%).
                 </p>
               </div>
             </div>
@@ -326,7 +339,7 @@ export function DashboardView({
               <button
                 type="button"
                 onClick={() => setCatalogOpen(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition shadow"
+                className="flex items-center gap-1.5 rounded-xl bg-[#20c997] px-3.5 py-2 text-xs font-bold text-[#06251e] hover:bg-[#1db889] transition shadow-lg shadow-[#20c997]/20"
               >
                 <span>＋</span>
                 <span>Adicionar Card / Bloco</span>
@@ -335,7 +348,7 @@ export function DashboardView({
               <button
                 type="button"
                 onClick={() => setTemplatesOpen(true)}
-                className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:border-slate-600 hover:text-white transition"
+                className="flex items-center gap-1.5 rounded-xl border border-[#263246] bg-[#151f30] px-3 py-2 text-xs font-semibold text-slate-200 hover:border-[#20c997]/40 hover:text-white transition"
               >
                 <span>📋</span>
                 <span>Modelos Prontos</span>
@@ -344,7 +357,7 @@ export function DashboardView({
               <button
                 type="button"
                 onClick={handleResetDefault}
-                className="rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition"
+                className="rounded-xl border border-[#263246] bg-[#151f30] px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white transition"
                 title="Restaurar layout de fábrica"
               >
                 ↺ Padrão
@@ -353,7 +366,7 @@ export function DashboardView({
               <button
                 type="button"
                 onClick={() => persistWidgets(widgets, true)}
-                className="rounded-xl bg-emerald-950 border border-emerald-700/60 px-3.5 py-2 text-xs font-bold text-emerald-300 hover:bg-emerald-900 transition"
+                className="rounded-xl bg-[#20c997]/15 border border-[#20c997]/40 px-3.5 py-2 text-xs font-bold text-[#20c997] hover:bg-[#20c997]/25 transition"
               >
                 💾 Salvar
               </button>
@@ -364,15 +377,15 @@ export function DashboardView({
 
       {/* Banner de Feedback ao Salvar */}
       {saveBanner && (
-        <div className="animate-in fade-in slide-in-from-top-2 rounded-xl border border-emerald-500/60 bg-emerald-950/80 p-3 text-xs font-semibold text-emerald-300 text-center shadow-lg">
+        <div className="animate-in fade-in slide-in-from-top-2 rounded-xl border border-[#20c997]/60 bg-emerald-950/80 p-3 text-xs font-semibold text-[#20c997] text-center shadow-lg font-mono">
           ✓ {saveBanner}
         </div>
       )}
 
       {/* ================= GRADE PRINCIPAL DE 12 COLUNAS DE WIDGETS ================= */}
       {visibleWidgets.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-700 p-12 text-center">
-          <p className="text-base font-bold text-white">Nenhum card visível na dashboard</p>
+        <div className="rounded-2xl border border-dashed border-[#263246] p-12 text-center bg-[#101827]/40">
+          <p className="text-base font-bold text-slate-100">Nenhum card visível na dashboard</p>
           <p className="mt-1 text-xs text-slate-400">
             Adicione novos cartões usando o catálogo ou restaure o modelo padrão.
           </p>
@@ -380,14 +393,14 @@ export function DashboardView({
             <button
               type="button"
               onClick={() => setCatalogOpen(true)}
-              className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950"
+              className="rounded-xl bg-[#20c997] px-4 py-2 text-xs font-bold text-[#06251e]"
             >
               ＋ Adicionar Card
             </button>
             <button
               type="button"
               onClick={handleResetDefault}
-              className="rounded-xl border border-slate-700 px-4 py-2 text-xs text-slate-300"
+              className="rounded-xl border border-[#263246] px-4 py-2 text-xs text-slate-300 hover:bg-[#151f30]"
             >
               Restaurar Padrão
             </button>
@@ -404,6 +417,7 @@ export function DashboardView({
               filaments={liveFilaments}
               jobs={liveJobs}
               orders={liveOrders}
+              cameras={liveCameras}
               now={now}
               onOpenSettings={(w) => setEditingWidget(w)}
               onOpenDetail={(metric) => setDetailModal(metric)}

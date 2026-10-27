@@ -7,7 +7,14 @@ export type WidgetType =
   | "equipment-fleet"
   | "materials-stock"
   | "production-pipeline"
-  | "quick-actions";
+  | "quick-actions"
+  | "kpi-active-printers"
+  | "kpi-production-queue"
+  | "kpi-filament-stock"
+  | "kpi-efficiency"
+  | "printer-fleet-grid"
+  | "production-queue-list"
+  | "filament-telemetry-chart";
 
 export type ChartType = "donut" | "bar-vertical" | "bar-horizontal" | "area-progress";
 export type TableFormat = "table" | "compact-list" | "cards-grid";
