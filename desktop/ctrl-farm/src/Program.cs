@@ -1,0 +1,679 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.IO;
+using System.Net.Sockets;
+using System.Reflection;
+using System.Threading;
+using System.Windows.Forms;
+
+namespace CtrlFarm.Desktop
+{
+    static class Program
+    {
+        private const string AppTitle = "CTRL-Farm Industrial Platform";
+        private const string AppVersion = "v1.0.0-BETA";
+        private const string MutexId = "Global\\CTRL_FARM_DESKTOP_SINGLE_INSTANCE";
+        private const int ApiPort = 3001;
+        private const int WebPort = 3000;
+        private const int DbPort = 5432;
+
+        private static Mutex appMutex;
+        private static NotifyIcon trayIcon;
+        private static ContextMenuStrip trayMenu;
+        private static Process apiProcess;
+        private static Process webProcess;
+        private static Process mediamtxProcess;
+        private static Process browserProcess;
+        private static string appRootDir;
+        private static string logsDir;
+        private static string dataDir;
+        private static SplashForm splashForm;
+
+        [STAThread]
+        static void Main()
+        {
+            bool createdNew;
+            appMutex = new Mutex(true, MutexId, out createdNew);
+            if (!createdNew)
+            {
+                MessageBox.Show(
+                    "O CTRL-Farm já está em execução no seu computador.\nVerifique o ícone na bandeja do sistema (perto do relógio).",
+                    AppTitle,
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
+            ResolvePaths();
+            InitLogs();
+
+            splashForm = new SplashForm();
+            splashForm.Show();
+            Application.DoEvents();
+
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    StartServicesWorkflow();
+                }
+                catch (Exception ex)
+                {
+                    Log("Erro fatal na inicialização: " + ex.Message + "\n" + ex.StackTrace);
+                    splashForm.Invoke((Action)(() =>
+                    {
+                        splashForm.SetStatus("Erro ao iniciar: " + ex.Message);
+                        MessageBox.Show(
+                            "Ocorreu um erro ao inicializar os serviços do CTRL-Farm:\n\n" + ex.Message +
+                            "\n\nConsulte os logs em: " + logsDir,
+                            AppTitle,
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        ExitApplication();
+                    }));
+                }
+            });
+
+            Application.Run();
+        }
+
+        private static void ResolvePaths()
+        {
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            if (File.Exists(Path.Combine(baseDir, "package.json")))
+            {
+                appRootDir = baseDir;
+            }
+            else if (File.Exists(Path.Combine(baseDir, "..", "..", "package.json")))
+            {
+                appRootDir = Path.GetFullPath(Path.Combine(baseDir, "..", ".."));
+            }
+            else if (File.Exists(Path.Combine(baseDir, "..", "package.json")))
+            {
+                appRootDir = Path.GetFullPath(Path.Combine(baseDir, ".."));
+            }
+            else
+            {
+                appRootDir = baseDir;
+            }
+
+            dataDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "CTRL-Farm");
+            logsDir = Path.Combine(dataDir, "Logs");
+
+            if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
+            if (!Directory.Exists(logsDir)) Directory.CreateDirectory(logsDir);
+        }
+
+        private static void InitLogs()
+        {
+            Log("=================================================");
+            Log("Iniciando " + AppTitle + " " + AppVersion);
+            Log("Diretório Raiz: " + appRootDir);
+            Log("Diretório de Dados: " + dataDir);
+            Log("Diretório de Logs: " + logsDir);
+            Log("=================================================");
+        }
+
+        public static void Log(string message)
+        {
+            try
+            {
+                string logFile = Path.Combine(logsDir, "launcher.log");
+                string line = string.Format("[{0:yyyy-MM-dd HH:mm:ss}] {1}", DateTime.Now, message);
+                File.AppendAllText(logFile, line + Environment.NewLine);
+            }
+            catch { }
+        }
+
+        private static void StartServicesWorkflow()
+        {
+            UpdateSplash("Verificando ambiente e banco de dados...", 15);
+            CheckDatabaseService();
+
+            UpdateSplash("Iniciando MediaMTX (Serviço de Câmeras)...", 30);
+            StartMediaMtxService();
+
+            UpdateSplash("Iniciando API NestJS do CTRL-Farm (Porta 3001)...", 50);
+            StartApiProcess();
+
+            UpdateSplash("Iniciando Interface Web Next.js (Porta 3000)...", 75);
+            StartWebProcess();
+
+            UpdateSplash("Aguardando inicialização dos servidores locais...", 90);
+            WaitForPort(ApiPort, 35000);
+            WaitForPort(WebPort, 35000);
+
+            UpdateSplash("CTRL-Farm pronto! Abrindo janela principal...", 100);
+            Thread.Sleep(800);
+
+            splashForm.Invoke((Action)(() =>
+            {
+                splashForm.Hide();
+                SetupTrayIcon();
+                LaunchAppWindow();
+            }));
+        }
+
+        private static void UpdateSplash(string text, int progress)
+        {
+            if (splashForm != null && !splashForm.IsDisposed)
+            {
+                splashForm.Invoke((Action)(() => splashForm.SetProgress(text, progress)));
+            }
+        }
+
+        private static void CheckDatabaseService()
+        {
+            if (IsPortOpen(DbPort, 1200))
+            {
+                Log("PostgreSQL detectado ativo na porta 5432.");
+                return;
+            }
+
+            Log("Porta 5432 fechada. Tentando iniciar contêineres Docker ctrlfarm-postgres e ctrlfarm-redis...");
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo("docker", "start ctrlfarm-postgres ctrlfarm-redis")
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                };
+                Process p = Process.Start(psi);
+                p.WaitForExit(7000);
+            }
+            catch (Exception ex)
+            {
+                Log("Aviso ao tentar iniciar Docker: " + ex.Message);
+            }
+
+            if (!IsPortOpen(DbPort, 4000))
+            {
+                Log("Aviso: PostgreSQL na porta 5432 ainda não respondeu. Continuando com inicialização...");
+            }
+        }
+
+        private static void StartMediaMtxService()
+        {
+            string mediamtxExe = Path.Combine(appRootDir, "bin", "mediamtx", "mediamtx.exe");
+            string mediamtxYml = Path.Combine(appRootDir, "bin", "mediamtx", "mediamtx.yml");
+
+            if (!File.Exists(mediamtxExe))
+            {
+                Log("Executável do MediaMTX não encontrado em: " + mediamtxExe);
+                return;
+            }
+
+            if (IsPortOpen(8890, 800) || IsPortOpen(9998, 800))
+            {
+                Log("MediaMTX já está em execução.");
+                return;
+            }
+
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo(mediamtxExe, "\"" + mediamtxYml + "\"")
+                {
+                    WorkingDirectory = Path.GetDirectoryName(mediamtxExe),
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                };
+                mediamtxProcess = Process.Start(psi);
+                Log("MediaMTX iniciado com PID: " + mediamtxProcess.Id);
+            }
+            catch (Exception ex)
+            {
+                Log("Erro ao iniciar MediaMTX: " + ex.Message);
+            }
+        }
+
+        private static void StartApiProcess()
+        {
+            if (IsPortOpen(ApiPort, 1000))
+            {
+                Log("API CTRL-Farm já está rodando na porta " + ApiPort);
+                return;
+            }
+
+            string apiDir = Path.Combine(appRootDir, "apps", "api");
+            string distMain = Path.Combine(apiDir, "dist", "main.js");
+
+            if (!File.Exists(distMain))
+            {
+                distMain = Path.Combine(apiDir, "dist", "main");
+            }
+
+            string nodeExe = FindNodeExecutable();
+            Log("Executando Node API com: " + nodeExe + " -> " + distMain);
+
+            ProcessStartInfo psi = new ProcessStartInfo(nodeExe, "\"" + distMain + "\"")
+            {
+                WorkingDirectory = apiDir,
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            psi.EnvironmentVariables["PORT"] = ApiPort.ToString();
+            psi.EnvironmentVariables["NODE_ENV"] = "production";
+
+            apiProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
+            apiProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("api.log", e.Data); };
+            apiProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("api.log", "[ERROR] " + e.Data); };
+
+            apiProcess.Start();
+            apiProcess.BeginOutputReadLine();
+            apiProcess.BeginErrorReadLine();
+            Log("Processo da API iniciado com PID: " + apiProcess.Id);
+        }
+
+        private static void StartWebProcess()
+        {
+            if (IsPortOpen(WebPort, 1000))
+            {
+                Log("Interface Web já está rodando na porta " + WebPort);
+                return;
+            }
+
+            string webDir = Path.Combine(appRootDir, "apps", "web");
+            string nextCli = Path.Combine(appRootDir, "node_modules", "next", "dist", "bin", "next");
+
+            string nodeExe = FindNodeExecutable();
+            string args = "";
+
+            if (File.Exists(nextCli))
+            {
+                args = string.Format("\"{0}\" start -p {1}", nextCli, WebPort);
+            }
+            else
+            {
+                args = string.Format("-e \"require('next/dist/bin/next')\" start -p {0}", WebPort);
+            }
+
+            Log("Executando Next.js Web com: " + nodeExe + " " + args);
+
+            ProcessStartInfo psi = new ProcessStartInfo(nodeExe, args)
+            {
+                WorkingDirectory = webDir,
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            psi.EnvironmentVariables["PORT"] = WebPort.ToString();
+            psi.EnvironmentVariables["NODE_ENV"] = "production";
+
+            webProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
+            webProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("web.log", e.Data); };
+            webProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("web.log", "[ERROR] " + e.Data); };
+
+            webProcess.Start();
+            webProcess.BeginOutputReadLine();
+            webProcess.BeginErrorReadLine();
+            Log("Processo Web iniciado com PID: " + webProcess.Id);
+        }
+
+        private static string FindNodeExecutable()
+        {
+            string[] possible = new string[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "nodejs", "node.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "nodejs", "node.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "node", "node.exe"),
+                "node"
+            };
+
+            foreach (var p in possible)
+            {
+                if (p == "node" || File.Exists(p)) return p;
+            }
+            return "node";
+        }
+
+        private static void AppendLog(string fileName, string text)
+        {
+            try
+            {
+                string path = Path.Combine(logsDir, fileName);
+                File.AppendAllText(path, string.Format("[{0:HH:mm:ss}] {1}\r\n", DateTime.Now, text));
+            }
+            catch { }
+        }
+
+        private static bool IsPortOpen(int port, int timeoutMs = 1000)
+        {
+            try
+            {
+                using (var client = new TcpClient())
+                {
+                    var result = client.BeginConnect("127.0.0.1", port, null, null);
+                    bool success = result.AsyncWaitHandle.WaitOne(timeoutMs);
+                    if (success && client.Connected)
+                    {
+                        client.EndConnect(result);
+                        return true;
+                    }
+                    return false;
+                }
+            }
+            catch { return false; }
+        }
+
+        private static void WaitForPort(int port, int maxWaitMs = 30000)
+        {
+            int elapsed = 0;
+            int step = 800;
+            while (elapsed < maxWaitMs)
+            {
+                if (IsPortOpen(port, 700)) return;
+                Thread.Sleep(step);
+                elapsed += step;
+            }
+        }
+
+        private static void LaunchAppWindow()
+        {
+            string url = string.Format("http://localhost:{0}", WebPort);
+            string profileDir = Path.Combine(dataDir, "WebProfile");
+
+            string browserPath = FindChromiumBrowser();
+            if (!string.IsNullOrEmpty(browserPath))
+            {
+                string args = string.Format(
+                    "--app=\"{0}\" --window-size=1440,900 --user-data-dir=\"{1}\" --disable-extensions --enable-features=OverlayScrollbar",
+                    url,
+                    profileDir);
+
+                try
+                {
+                    ProcessStartInfo psi = new ProcessStartInfo(browserPath, args);
+                    browserProcess = Process.Start(psi);
+                    Log("Janela do aplicativo aberta com: " + browserPath);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Log("Erro ao abrir navegador em modo app: " + ex.Message);
+                }
+            }
+
+            // Fallback: abre no navegador padrão
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+
+        private static string FindChromiumBrowser()
+        {
+            string[] paths = new string[]
+            {
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft", "Edge", "Application", "msedge.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft", "Edge", "Application", "msedge.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Google", "Chrome", "Application", "chrome.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Google", "Chrome", "Application", "chrome.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Edge", "Application", "msedge.exe")
+            };
+
+            foreach (var p in paths)
+            {
+                if (File.Exists(p)) return p;
+            }
+            return null;
+        }
+
+        private static void SetupTrayIcon()
+        {
+            trayMenu = new ContextMenuStrip();
+
+            var titleItem = new ToolStripMenuItem(string.Format("{0} ({1})", AppTitle, AppVersion))
+            {
+                Enabled = false,
+                Font = new Font(FontFamily.GenericSansSerif, 8.5f, FontStyle.Bold)
+            };
+            trayMenu.Items.Add(titleItem);
+            trayMenu.Items.Add(new ToolStripSeparator());
+
+            var openItem = new ToolStripMenuItem("🖥️  Abrir CTRL-Farm", null, (s, e) => LaunchAppWindow());
+            openItem.Font = new Font(FontFamily.GenericSansSerif, 8.5f, FontStyle.Bold);
+            trayMenu.Items.Add(openItem);
+
+            var restartItem = new ToolStripMenuItem("🔄  Reiniciar Servidores", null, (s, e) => RestartServices());
+            trayMenu.Items.Add(restartItem);
+
+            var externalItem = new ToolStripMenuItem("🌐  Abrir no Navegador Externo", null, (s, e) =>
+            {
+                Process.Start(new ProcessStartInfo(string.Format("http://localhost:{0}", WebPort)) { UseShellExecute = true });
+            });
+            trayMenu.Items.Add(externalItem);
+
+            var logsItem = new ToolStripMenuItem("📂  Abrir Pasta de Logs", null, (s, e) =>
+            {
+                Process.Start(new ProcessStartInfo("explorer.exe", "\"" + logsDir + "\"") { UseShellExecute = true });
+            });
+            trayMenu.Items.Add(logsItem);
+
+            trayMenu.Items.Add(new ToolStripSeparator());
+
+            var statusItem = new ToolStripMenuItem("ℹ️  Status dos Serviços", null, (s, e) => ShowStatusDialog());
+            trayMenu.Items.Add(statusItem);
+
+            trayMenu.Items.Add(new ToolStripSeparator());
+
+            var exitItem = new ToolStripMenuItem("❌  Encerrar CTRL-Farm", null, (s, e) => ExitApplication());
+            trayMenu.Items.Add(exitItem);
+
+            Icon appIcon = LoadAppIcon();
+
+            trayIcon = new NotifyIcon
+            {
+                Icon = appIcon,
+                Text = AppTitle + " (Operacional)",
+                ContextMenuStrip = trayMenu,
+                Visible = true
+            };
+
+            trayIcon.DoubleClick += (s, e) => LaunchAppWindow();
+
+            trayIcon.ShowBalloonTip(
+                4000,
+                AppTitle,
+                "CTRL-Farm está ativo e operacional na porta 3000.\nClique duas vezes para abrir.",
+                ToolTipIcon.Info);
+        }
+
+        private static Icon LoadAppIcon()
+        {
+            string iconPath = Path.Combine(appRootDir, "desktop", "ctrl-farm", "icon.ico");
+            if (File.Exists(iconPath))
+            {
+                try { return new Icon(iconPath); } catch { }
+            }
+            return SystemIcons.Application;
+        }
+
+        private static void ShowStatusDialog()
+        {
+            bool db = IsPortOpen(DbPort, 600);
+            bool api = IsPortOpen(ApiPort, 600);
+            bool web = IsPortOpen(WebPort, 600);
+            bool cam = IsPortOpen(8890, 600) || IsPortOpen(9998, 600);
+
+            string msg = string.Format(
+                "Status Atual dos Componentes CTRL-Farm:\n\n" +
+                "• Banco de Dados PostgreSQL (5432): {0}\n" +
+                "• API NestJS & Licensing (3001): {1}\n" +
+                "• Interface Web Next.js (3000): {2}\n" +
+                "• Servidor de Câmeras MediaMTX (8890): {3}\n\n" +
+                "Pasta de Instalação: {4}\n" +
+                "Pasta de Logs: {5}",
+                db ? "🟢 Conectado" : "🔴 Não acessível",
+                api ? "🟢 Operacional (200 OK)" : "🔴 Offline",
+                web ? "🟢 Operacional (200 OK)" : "🔴 Offline",
+                cam ? "🟢 Transmissão Ativa" : "⚪ Em espera",
+                appRootDir,
+                logsDir);
+
+            MessageBox.Show(msg, "Diagnóstico do Sistema - " + AppTitle, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private static void RestartServices()
+        {
+            KillProcessTree(apiProcess);
+            KillProcessTree(webProcess);
+            KillProcessTree(mediamtxProcess);
+
+            apiProcess = null;
+            webProcess = null;
+            mediamtxProcess = null;
+
+            Thread.Sleep(1500);
+            StartMediaMtxService();
+            StartApiProcess();
+            StartWebProcess();
+
+            if (trayIcon != null)
+            {
+                trayIcon.ShowBalloonTip(3000, AppTitle, "Serviços reiniciados com sucesso!", ToolTipIcon.Info);
+            }
+        }
+
+        public static void ExitApplication()
+        {
+            Log("Encerrando aplicação e finalizando todos os processos filhos...");
+            if (trayIcon != null)
+            {
+                trayIcon.Visible = false;
+                trayIcon.Dispose();
+            }
+
+            KillProcessTree(apiProcess);
+            KillProcessTree(webProcess);
+            KillProcessTree(mediamtxProcess);
+
+            if (appMutex != null)
+            {
+                appMutex.ReleaseMutex();
+                appMutex.Dispose();
+            }
+
+            Environment.Exit(0);
+        }
+
+        private static void KillProcessTree(Process p)
+        {
+            if (p == null) return;
+            try
+            {
+                if (!p.HasExited)
+                {
+                    Process killer = Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "taskkill",
+                        Arguments = string.Format("/PID {0} /T /F", p.Id),
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    });
+                    if (killer != null)
+                    {
+                        killer.WaitForExit(3000);
+                    }
+                }
+            }
+            catch { }
+        }
+    }
+
+    public class SplashForm : Form
+    {
+        private ProgressBar progressBar;
+        private Label lblStatus;
+        private Label lblTitle;
+        private Label lblSubtitle;
+
+        public SplashForm()
+        {
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.Size = new Size(520, 260);
+            this.BackColor = Color.FromArgb(10, 15, 27); // #0a0f1b Dark Industrial
+            this.ShowInTaskbar = true;
+            this.TopMost = true;
+
+            lblTitle = new Label
+            {
+                Text = "CTRL-Farm",
+                Font = new Font("Segoe UI", 22, FontStyle.Bold),
+                ForeColor = Color.FromArgb(32, 201, 151), // #20c997 Emerald Neon
+                Location = new Point(30, 30),
+                AutoSize = true
+            };
+            this.Controls.Add(lblTitle);
+
+            lblSubtitle = new Label
+            {
+                Text = "Plataforma Industrial de Impressão 3D & Gestão Integrada • v1.0.0-Beta",
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Regular),
+                ForeColor = Color.FromArgb(148, 163, 184), // Slate-400
+                Location = new Point(32, 75),
+                AutoSize = true
+            };
+            this.Controls.Add(lblSubtitle);
+
+            progressBar = new ProgressBar
+            {
+                Location = new Point(32, 130),
+                Size = new Size(456, 12),
+                Minimum = 0,
+                Maximum = 100,
+                Value = 10,
+                Style = ProgressBarStyle.Continuous
+            };
+            this.Controls.Add(progressBar);
+
+            lblStatus = new Label
+            {
+                Text = "Carregando componentes do sistema...",
+                Font = new Font("Segoe UI", 9, FontStyle.Regular),
+                ForeColor = Color.FromArgb(203, 213, 225),
+                Location = new Point(32, 155),
+                Size = new Size(456, 40)
+            };
+            this.Controls.Add(lblStatus);
+
+            Label lblFooter = new Label
+            {
+                Text = "Iniciando serviços locais • Porta 3000 / 3001 • Conexão Segura",
+                Font = new Font("Segoe UI", 8, FontStyle.Italic),
+                ForeColor = Color.FromArgb(100, 116, 139),
+                Location = new Point(32, 215),
+                AutoSize = true
+            };
+            this.Controls.Add(lblFooter);
+
+            this.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Color.FromArgb(38, 50, 70), 2)) // #263246
+                {
+                    e.Graphics.DrawRectangle(pen, 0, 0, this.Width - 1, this.Height - 1);
+                }
+            };
+        }
+
+        public void SetProgress(string status, int progress)
+        {
+            lblStatus.Text = status;
+            progressBar.Value = Math.Min(100, Math.Max(0, progress));
+            this.Refresh();
+        }
+
+        public void SetStatus(string status)
+        {
+            lblStatus.Text = status;
+            this.Refresh();
+        }
+    }
+}
