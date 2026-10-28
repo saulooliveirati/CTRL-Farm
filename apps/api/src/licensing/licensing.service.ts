@@ -74,7 +74,6 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(LicensingService.name);
   private publicKeyPem: string = "";
   private cacheFilePath: string = "";
-  private currentLicense: CachedLicense | null = null;
   private admApiUrl: string = process.env.ADM_API_URL || "http://localhost:4001/api/v1";
   private syncCheckTimer: NodeJS.Timeout | null = null;
 
@@ -109,7 +108,6 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     this.initPaths();
     this.loadPublicKey();
-    this.loadCachedLicense();
     this.scheduleLicensingValidation();
   }
 
@@ -143,58 +141,57 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Avalia as regras de sincronização da chave de ativação
+   * Avalia as regras de sincronização da chave de ativação para cada cliente isoladamente
    */
   async evaluateValidationSchedule() {
     try {
-      const dbLicense = await this.prisma.userLicense.findFirst({
-        orderBy: { createdAt: "desc" },
+      const activeLicenses = await this.prisma.userLicense.findMany({
+        where: {
+          activationKey: { not: "" },
+          status: { in: ["ACTIVE", "SUSPENDED", "PAUSED", "EXPIRED"] },
+        },
+        include: { user: true },
       });
 
-      const targetLicense = dbLicense || this.currentLicense;
-      if (!targetLicense) {
+      if (!activeLicenses || activeLicenses.length === 0) {
         return;
       }
 
       const now = new Date();
-      const expiresAt = new Date(targetLicense.expiresAt);
-      const lastValidated = targetLicense.lastValidatedAt
-        ? new Date(targetLicense.lastValidatedAt)
-        : new Date("createdAt" in targetLicense ? targetLicense.createdAt : (targetLicense as any).issuedAt);
 
-      const daysSinceLastValidation = (now.getTime() - lastValidated.getTime()) / (1000 * 60 * 60 * 24);
-      const isLocked =
-        targetLicense.status === "SUSPENDED" ||
-        targetLicense.status === "SUSPENSO" ||
-        targetLicense.status === "PAUSED" ||
-        targetLicense.status === "PAUSADO";
+      for (const lic of activeLicenses) {
+        try {
+          const expiresAt = new Date(lic.expiresAt);
+          const lastValidated = lic.lastValidatedAt
+            ? new Date(lic.lastValidatedAt)
+            : new Date(lic.createdAt);
 
-      // 1. Data de vencimento atingida ou hoje é a data de renovação da chave
-      const isDueDateReached =
-        now >= expiresAt ||
-        (now.getFullYear() === expiresAt.getFullYear() &&
-          now.getMonth() === expiresAt.getMonth() &&
-          now.getDate() === expiresAt.getDate());
+          const daysSinceLastValidation = (now.getTime() - lastValidated.getTime()) / (1000 * 60 * 60 * 24);
+          const isLocked =
+            lic.status === "SUSPENDED" ||
+            lic.status === "SUSPENSO" ||
+            lic.status === "PAUSED" ||
+            lic.status === "PAUSADO";
 
-      // 2. Ciclo periódico de 15 dias completado
-      const is15DaysCycleReached = daysSinceLastValidation >= 15;
+          const isDueDateReached =
+            now >= expiresAt ||
+            (now.getFullYear() === expiresAt.getFullYear() &&
+              now.getMonth() === expiresAt.getMonth() &&
+              now.getDate() === expiresAt.getDate());
 
-      if (isDueDateReached) {
-        this.logger.log(
-          `Data de vencimento da chave atingida (${expiresAt.toISOString().slice(0, 10)}). Executando validação automática para renovação com o Sistema ADM Gerente...`
-        );
-        const result = await this.getStatus(undefined, true);
-        this.logger.log(`Validação de vencimento/renovação concluída: Status=${result?.status}, isLicensed=${result?.isLicensed}`);
-      } else if (is15DaysCycleReached) {
-        this.logger.log(
-          `Ciclo periódico de 15 dias atingido (${daysSinceLastValidation.toFixed(1)} dias desde a última validação). Sincronizando licença com o Sistema ADM Gerente...`
-        );
-        const result = await this.getStatus(undefined, true);
-        this.logger.log(`Sincronização periódica de 15 dias concluída: Status=${result?.status}, isLicensed=${result?.isLicensed}`);
-      } else if (isLocked) {
-        // Se estiver bloqueada/suspensa, tenta revalidar a cada 15 minutos para desbloqueio rápido
-        this.logger.debug("Licença com status suspenso. Tentando revalidação junto ao Sistema ADM Gerente...");
-        await this.getStatus(undefined, true);
+          const is15DaysCycleReached = daysSinceLastValidation >= 15;
+
+          if (isDueDateReached || is15DaysCycleReached || isLocked) {
+            this.logger.log(
+              `Sincronizando licença ${lic.activationKey} (Empresa: ${lic.companyId || lic.userId}). Motivo: DueDate=${isDueDateReached}, 15Days=${is15DaysCycleReached}, Locked=${isLocked}`
+            );
+            if (lic.user) {
+              await this.getStatus(lic.user as any, true);
+            }
+          }
+        } catch (licErr: any) {
+          this.logger.warn(`Erro ao sincronizar licença individual ${lic.activationKey}: ${licErr.message}`);
+        }
       }
     } catch (err: any) {
       this.logger.warn(`Falha na avaliação agendada de validação de licença: ${err.message}`);
@@ -212,6 +209,14 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
     expiresAt?: string;
   }) {
     const cleanKey = dto.activationKey ? dto.activationKey.trim().toUpperCase() : "";
+    if (!cleanKey) {
+      this.logger.warn("Comando de sincronização remota ignorado: activationKey vazia.");
+      return {
+        success: false,
+        message: "Chave de ativação é obrigatória para sincronização remota.",
+      };
+    }
+
     const action = dto.action ? dto.action.toUpperCase() : (dto.status === "SUSPENDED" ? "SUSPEND" : "SYNC");
     const normalizedStatus =
       dto.status === "SUSPENSO" || dto.status === "SUSPENDED" || action === "SUSPEND"
@@ -222,11 +227,11 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
 
     if (normalizedStatus === "SUSPENDED") {
       this.logger.warn(
-        `🚨 NOTIFICAÇÃO IMEDIATA DO ADM GERENTE: Suspensão do serviço recebida para a chave: ${cleanKey || "GLOBAL"}. Motivo: ${dto.reason || "Assinatura suspensa"}`
+        `🚨 NOTIFICAÇÃO IMEDIATA DO ADM GERENTE: Suspensão do serviço recebida para a chave: ${cleanKey}. Motivo: ${dto.reason || "Assinatura suspensa"}`
       );
     } else {
       this.logger.log(
-        `✅ NOTIFICAÇÃO IMEDIATA DO ADM GERENTE: Reativação/atualização recebida para a chave: ${cleanKey || "GLOBAL"}. Status: ${normalizedStatus}`
+        `✅ NOTIFICAÇÃO IMEDIATA DO ADM GERENTE: Reativação/atualização recebida para a chave: ${cleanKey}. Status: ${normalizedStatus}`
       );
     }
 
@@ -238,27 +243,11 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
       updateData.expiresAt = new Date(dto.expiresAt);
     }
 
-    // 1. Atualiza no Banco de Dados
-    if (cleanKey) {
-      await this.prisma.userLicense.updateMany({
-        where: { activationKey: cleanKey },
-        data: updateData,
-      });
-    } else {
-      await this.prisma.userLicense.updateMany({
-        data: updateData,
-      });
-    }
-
-    // 2. Atualiza no Cache em Disco e Memória
-    if (this.currentLicense && (!cleanKey || this.currentLicense.activationKey === cleanKey)) {
-      this.currentLicense.status = normalizedStatus as any;
-      this.currentLicense.lastValidatedAt = new Date().toISOString();
-      if (dto.expiresAt) {
-        this.currentLicense.expiresAt = dto.expiresAt;
-      }
-      this.saveLicenseToCache(this.currentLicense);
-    }
+    // 1. Atualiza no Banco de Dados estritamente para a chave correspondente
+    await this.prisma.userLicense.updateMany({
+      where: { activationKey: cleanKey },
+      data: updateData,
+    });
 
     return {
       success: true,
@@ -310,27 +299,11 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
   }
 
   private loadCachedLicense() {
-    try {
-      if (fs.existsSync(this.cacheFilePath)) {
-        const raw = fs.readFileSync(this.cacheFilePath, "utf8");
-        this.currentLicense = JSON.parse(raw);
-        this.logger.log(
-          `Licença carregada do cache local: Plano ${this.currentLicense?.plan?.name} (${this.currentLicense?.activationKey})`
-        );
-      }
-    } catch (err) {
-      this.logger.warn(`Falha ao ler cache de licença: ${err}`);
-      this.currentLicense = null;
-    }
+    // Multi-tenant: cada empresa/usuário possui sua própria licença isolada no banco PostgreSQL
   }
 
   private saveLicenseToCache(license: CachedLicense) {
-    try {
-      fs.writeFileSync(this.cacheFilePath, JSON.stringify(license, null, 2), "utf8");
-      this.currentLicense = license;
-    } catch (err) {
-      this.logger.error(`Erro ao salvar cache de licença: ${err}`);
-    }
+    // Multi-tenant: cada empresa/usuário possui sua própria licença isolada no banco PostgreSQL
   }
 
   public verifySignature(payload: string | object, signatureBase64: string): boolean {
@@ -360,6 +333,10 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
   ): Promise<any> {
     const cleanKey = activationKey.trim().toUpperCase();
     this.logger.log(`Tentando ativar licença: ${cleanKey} para usuário: ${user?.email || "Geral"}`);
+
+    if (!user?.id) {
+      throw new BadRequestException("Usuário autenticado obrigatório para ativação da licença.");
+    }
 
     try {
       let data: any = null;
@@ -440,57 +417,36 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
         );
       }
 
-      const cached: CachedLicense = {
-        activationKey: data.activationKey,
-        client: data.client,
-        plan: data.plan,
-        features: data.features,
-        issuedAt: data.issuedAt,
-        expiresAt: data.expiresAt,
-        rsaSignature: data.rsaSignature,
-        lastValidatedAt: new Date().toISOString(),
-        offlineGracePeriodDays: 15,
-        status: "ACTIVE",
-      };
+      // Associa a licença no banco de dados do CTRL-Farm vinculada estritamente ao usuário/empresa
+      const targetUserId = user.id;
 
-      this.saveLicenseToCache(cached);
-
-      // Associa a licença no banco de dados do CTRL-Farm vinculada ao usuário
-      let targetUserId = user?.id;
-      if (!targetUserId) {
-        const firstUser = await this.prisma.user.findFirst();
-        if (firstUser) targetUserId = firstUser.id;
-      }
-
-      if (targetUserId) {
-        await this.prisma.userLicense.upsert({
-          where: { userId: targetUserId },
-          create: {
-            userId: targetUserId,
-            companyId: user?.companyId || null,
-            activationKey: data.activationKey,
-            planCode: data.plan.code,
-            planName: data.plan.name,
-            status: "ACTIVE",
-            expiresAt: new Date(data.expiresAt),
-            allowedFeatures: data.features,
-            rsaSignature: data.rsaSignature,
-            lastValidatedAt: new Date(),
-            autoUpdate: true,
-          },
-          update: {
-            companyId: user?.companyId || null,
-            activationKey: data.activationKey,
-            planCode: data.plan.code,
-            planName: data.plan.name,
-            status: "ACTIVE",
-            expiresAt: new Date(data.expiresAt),
-            allowedFeatures: data.features,
-            rsaSignature: data.rsaSignature,
-            lastValidatedAt: new Date(),
-          },
-        });
-      }
+      await this.prisma.userLicense.upsert({
+        where: { userId: targetUserId },
+        create: {
+          userId: targetUserId,
+          companyId: user.companyId || null,
+          activationKey: data.activationKey,
+          planCode: data.plan.code,
+          planName: data.plan.name,
+          status: "ACTIVE",
+          expiresAt: new Date(data.expiresAt),
+          allowedFeatures: data.features,
+          rsaSignature: data.rsaSignature,
+          lastValidatedAt: new Date(),
+          autoUpdate: true,
+        },
+        update: {
+          companyId: user.companyId || null,
+          activationKey: data.activationKey,
+          planCode: data.plan.code,
+          planName: data.plan.name,
+          status: "ACTIVE",
+          expiresAt: new Date(data.expiresAt),
+          allowedFeatures: data.features,
+          rsaSignature: data.rsaSignature,
+          lastValidatedAt: new Date(),
+        },
+      });
 
       return {
         success: true,
@@ -510,36 +466,39 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Consulta o status da licença do usuário conectado (ou fallback do sistema)
-   */
-  /**
-   * Consulta o status da licença do usuário conectado (ou fallback do sistema)
+   * Consulta o status da licença do usuário conectado (Isolamento Multi-tenant Estrito)
    */
   async getStatus(user?: AuthenticatedUser, forceOnlineCheck: boolean = false) {
+    if (!user?.id && !user?.companyId) {
+      return {
+        isLicensed: false,
+        isSuspended: false,
+        mode: "OFFLINE_CACHE",
+        status: "UNLICENSED",
+        message: "Nenhum usuário autenticado.",
+        daysRemaining: 0,
+        license: null,
+      };
+    }
+
     let dbLicense = null;
 
-    if (user?.id) {
+    if (user.id) {
       dbLicense = await this.prisma.userLicense.findUnique({
         where: { userId: user.id },
       });
+    }
 
-      // Se o usuário não tiver licença própria, procura pela empresa dele
-      if (!dbLicense && user.companyId) {
-        dbLicense = await this.prisma.userLicense.findFirst({
-          where: { companyId: user.companyId },
-          orderBy: { createdAt: "desc" },
-        });
-      }
-    } else {
-      // Somente se NÃO há usuário autenticado específico busca uma licença ativa geral
+    // Se o usuário não tiver licença própria direta, procura pela empresa dele
+    if (!dbLicense && user.companyId) {
       dbLicense = await this.prisma.userLicense.findFirst({
-        where: { status: "ACTIVE" },
+        where: { companyId: user.companyId },
         orderBy: { createdAt: "desc" },
       });
     }
 
     // Se o usuário está autenticado e não tem licença ou a licença está pendente/sem chave
-    if (user?.id && (!dbLicense || dbLicense.status === "PENDING_ACTIVATION" || !dbLicense.activationKey)) {
+    if (!dbLicense || dbLicense.status === "PENDING_ACTIVATION" || !dbLicense.activationKey) {
       // 1. Verifica no Firestore se o cadastro foi aprovado e a chave já foi emitida pelo ADM Gerente
       try {
         const firestore = this.firebase.getFirestore();
@@ -630,10 +589,6 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
                 where: { id: dbLicense.id },
                 data: { status, lastValidatedAt: now },
               });
-              if (this.currentLicense) {
-                this.currentLicense.status = status as any;
-                this.saveLicenseToCache(this.currentLicense);
-              }
             }
           } else if (fbLicense.status === "ACTIVE" || fbLicense.active === true) {
             status = "ACTIVE";
@@ -670,27 +625,6 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
               if (updateFields.planName) dbLicense.planName = updateFields.planName;
               if (updateFields.allowedFeatures) dbLicense.allowedFeatures = updateFields.allowedFeatures;
               if (updateFields.expiresAt) dbLicense.expiresAt = updateFields.expiresAt;
-            }
-
-            if (this.currentLicense) {
-              this.currentLicense.status = "ACTIVE";
-              this.currentLicense.lastValidatedAt = now.toISOString();
-              if (fbLicense.planCode) {
-                this.currentLicense.plan = {
-                  ...this.currentLicense.plan,
-                  code: fbLicense.planCode,
-                  name: fbLicense.planName || fbLicense.planCode,
-                  maxPrinters: fbLicense.maxPrinters ?? this.currentLicense.plan.maxPrinters,
-                  maxCompanies: fbLicense.maxCompanies ?? this.currentLicense.plan.maxCompanies,
-                };
-              }
-              if (fbLicense.allowedFeatures) {
-                this.currentLicense.features = fbLicense.allowedFeatures;
-              }
-              if (fbLicense.expiresAt) {
-                this.currentLicense.expiresAt = fbLicense.expiresAt;
-              }
-              this.saveLicenseToCache(this.currentLicense);
             }
           }
         }
@@ -776,14 +710,6 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
       let issuedAtStr = new Date(dbLicense.createdAt).toISOString();
       let expiresAtStr = expiresAt.toISOString();
 
-      if (this.currentLicense?.activationKey === dbLicense.activationKey) {
-        clientId = this.currentLicense.client?.id || clientId;
-        clientName = this.currentLicense.client?.name || clientName;
-        issuedAtStr = new Date(this.currentLicense.issuedAt).toISOString();
-        expiresAtStr = new Date(this.currentLicense.expiresAt).toISOString();
-        features = this.currentLicense.features;
-      }
-
       // Validação de assinatura RSA
       const canonicalPayload = buildLicenseCanonicalPayload({
         activationKey: dbLicense.activationKey,
@@ -841,120 +767,13 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
       };
     }
 
-    // Fallback para cache local SOMENTE se não houver usuário autenticado específico
-    if (!user?.id && this.currentLicense) {
-      let onlineCheckSuccess = false;
-      let lockReason = "";
-      const now = new Date();
-      let status = (this.currentLicense as any).status || "ACTIVE";
-
-      const isCurrentlyLocked =
-        status === "SUSPENDED" ||
-        status === "SUSPENSO" ||
-        status === "PAUSED" ||
-        status === "PAUSADO" ||
-        status === "CANCELLED" ||
-        status === "CANCELADO" ||
-        status === "REVOKED";
-
-      if (forceOnlineCheck || isCurrentlyLocked) {
-        try {
-          const admRes = await fetch(
-            `${this.admApiUrl}/licenses/check-status/${encodeURIComponent(this.currentLicense.activationKey)}`,
-            { cache: "no-store", signal: AbortSignal.timeout(6000) }
-          );
-          if (admRes.ok) {
-            const admData = await admRes.json();
-            if (admData.found) {
-              onlineCheckSuccess = true;
-              if (admData.isLocked || admData.isSuspended) {
-                status = admData.lockType || "SUSPENDED";
-                lockReason = admData.lockReason || "Licença bloqueada no Sistema ADM.";
-                (this.currentLicense as any).status = status;
-                this.saveLicenseToCache(this.currentLicense);
-              } else if (admData.licenseStatus === "ACTIVE") {
-                status = "ACTIVE";
-                (this.currentLicense as any).status = "ACTIVE";
-                this.currentLicense.lastValidatedAt = now.toISOString();
-                this.saveLicenseToCache(this.currentLicense);
-              }
-            }
-          }
-        } catch (e: any) {
-          this.logger.warn(`Falha na checagem online com o ADM Gerente: ${e.message}`);
-        }
-      }
-
-      // Tolerância offline 15 dias no cache
-      const lastValidated = this.currentLicense.lastValidatedAt
-        ? new Date(this.currentLicense.lastValidatedAt)
-        : new Date(this.currentLicense.issuedAt);
-      const daysSinceValidation = (now.getTime() - lastValidated.getTime()) / (1000 * 60 * 60 * 24);
-      const isToleranceExceeded = daysSinceValidation > 15;
-      const offlineDaysRemaining = Math.max(0, Math.ceil(15 - daysSinceValidation));
-
-      if (isToleranceExceeded && status === "ACTIVE") {
-        this.logger.error(`Prazo de 15 dias sem validação com o ADM Gerente excedido no cache local. Bloqueando.`);
-        status = "SUSPENDED";
-        lockReason =
-          "Prazo limite de 15 dias sem validação de licença excedido. Conecte o CTRL-Farm à internet para sincronizar com o ADM Gerente.";
-        (this.currentLicense as any).status = "SUSPENDED";
-        this.saveLicenseToCache(this.currentLicense);
-      }
-
-      const expiresAt = new Date(this.currentLicense.expiresAt);
-      const isLocked =
-        status === "SUSPENDED" ||
-        status === "SUSPENSO" ||
-        status === "PAUSED" ||
-        status === "PAUSADO" ||
-        status === "CANCELLED" ||
-        status === "CANCELADO" ||
-        status === "REVOKED";
-
-      const isExpired = now > expiresAt && !isLocked;
-      const daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-      const isLicensed = !isExpired && !isLocked && status === "ACTIVE";
-
-      return {
-        isLicensed,
-        isSuspended: isLocked,
-        mode: onlineCheckSuccess ? "ONLINE" : "OFFLINE_CACHE",
-        status: isLocked ? status : isExpired ? "EXPIRED" : status,
-        message: isLocked
-          ? lockReason ||
-            (status === "PAUSED" || status === "PAUSADO"
-              ? "Licença pausada temporariamente pelo administrador."
-              : status === "CANCELLED" || status === "CANCELADO"
-                ? "Assinatura cancelada no Sistema ADM."
-                : status === "REVOKED"
-                  ? "Chave de licença revogada."
-                  : "Assinatura suspensa por pagamento pendente.")
-          : isExpired
-            ? "Sua licença local expirou."
-            : onlineCheckSuccess
-              ? `Licença local ${this.currentLicense.plan.name} ativa.`
-              : `Licença local operando em modo offline (${offlineDaysRemaining} dias restantes para validação obrigatória).`,
-        daysRemaining,
-        license: {
-          activationKey: this.currentLicense.activationKey,
-          plan: this.currentLicense.plan,
-          features: this.currentLicense.features,
-          expiresAt: this.currentLicense.expiresAt,
-          lastValidatedAt: this.currentLicense.lastValidatedAt,
-          autoUpdate: true,
-          updateChannel: "STABLE",
-        },
-      };
-    }
-
-    // Sem licença
+    // Sem licença para este usuário/empresa
     return {
       isLicensed: false,
       isSuspended: false,
       mode: "OFFLINE_CACHE",
       status: "UNLICENSED",
-      message: "Nenhuma licença ativa encontrada. Insira uma chave de ativação para desbloquear os recursos.",
+      message: "Nenhuma licença ativa encontrada para este usuário/empresa. Insira uma chave de ativação para desbloquear os recursos.",
       daysRemaining: 0,
       license: null,
     };

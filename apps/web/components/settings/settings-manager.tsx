@@ -7,6 +7,7 @@ import type { PublicUser } from "@/lib/auth-types";
 import { LgpdPrivacyTab } from "./lgpd-privacy-tab";
 import { LicensingTab } from "./licensing-tab";
 import { FirebaseCloudTab } from "./firebase-cloud-tab";
+import { BackupRestoreTab } from "./backup-restore-tab";
 import { useLicensing } from "@/contexts/licensing-context";
 
 export type RoleType = "ADMIN" | "MANAGER" | "OPERATOR" | "VIEWER";
@@ -320,15 +321,15 @@ export function SettingsManager({
 }) {
   const [users, setUsers] = useState<CompanyUserRecord[]>(initialUsers);
   const [activeTab, setActiveTab] = useState<
-    "company" | "users" | "matrix" | "system" | "lgpd" | "licensing" | "firebase"
+    "company" | "users" | "matrix" | "system" | "lgpd" | "licensing" | "firebase" | "backup"
   >(
     defaultTab &&
-      ["company", "users", "matrix", "system", "lgpd", "licensing", "firebase"].includes(defaultTab)
+      ["company", "users", "matrix", "system", "lgpd", "licensing", "firebase", "backup"].includes(defaultTab)
       ? (defaultTab as any)
       : "company"
   );
 
-  const selectTab = (tab: "company" | "users" | "matrix" | "system" | "lgpd" | "licensing" | "firebase") => {
+  const selectTab = (tab: "company" | "users" | "matrix" | "system" | "lgpd" | "licensing" | "firebase" | "backup") => {
     setActiveTab(tab);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
@@ -341,7 +342,7 @@ export function SettingsManager({
   useEffect(() => {
     if (
       defaultTab &&
-      ["company", "users", "matrix", "system", "lgpd", "licensing", "firebase"].includes(defaultTab)
+      ["company", "users", "matrix", "system", "lgpd", "licensing", "firebase", "backup"].includes(defaultTab)
     ) {
       setActiveTab(defaultTab as any);
     }
@@ -777,6 +778,37 @@ export function SettingsManager({
           </button>
         </div>
       )}
+
+      {/* Barra de Navegação Horizontal das Configurações */}
+      <nav className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-slate-800 bg-[#0e1626] p-1.5 text-xs font-semibold scrollbar-none">
+        {[
+          { key: "company", label: "Dados da Empresa", icon: "🏢" },
+          { key: "users", label: "Usuários & Equipe", icon: "👥" },
+          ...(canShowPermissionsMatrix ? [{ key: "matrix", label: "Matriz de Permissões", icon: "🛡️" }] : []),
+          { key: "system", label: "Parâmetros da Farm", icon: "⚙️" },
+          { key: "lgpd", label: "Privacidade & LGPD", icon: "📜" },
+          { key: "licensing", label: "Assinatura & Updates", icon: "🔑" },
+          { key: "firebase", label: "Nuvem & Firebase", icon: "☁️" },
+          { key: "backup", label: "Backup do Serviço", icon: "💾" },
+        ].map((t) => {
+          const isActive = activeTab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => selectTab(t.key as any)}
+              className={`flex items-center gap-2 rounded-xl px-3.5 py-2 transition shrink-0 ${
+                isActive
+                  ? "bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-950/20"
+                  : "text-slate-400 hover:bg-slate-800/60 hover:text-white"
+              }`}
+            >
+              <span>{t.icon}</span>
+              <span>{t.label}</span>
+            </button>
+          );
+        })}
+      </nav>
 
       {/* ================= ABA 1: DADOS DA EMPRESA (CPF / CNPJ) ================= */}
       {activeTab === "company" && (
@@ -1706,6 +1738,11 @@ export function SettingsManager({
 
       {/* ================= ABA 7: NUVEM & FIREBASE ================= */}
       {activeTab === "firebase" && <FirebaseCloudTab />}
+
+      {/* ================= ABA 8: BACKUP COMPLETO DO SERVIÇO ================= */}
+      {activeTab === "backup" && (
+        <BackupRestoreTab currentUser={currentUser} company={initialCompany} />
+      )}
 
       {/* ================= MODAL: CRIAR NOVO USUÁRIO ================= */}
       {createModalOpen && (

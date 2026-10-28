@@ -17,6 +17,7 @@ import { LicensingModule } from "./licensing/licensing.module.js";
 import { MarketplaceModule } from "./marketplace/marketplace.module.js";
 import { FirebaseModule } from "./firebase/firebase.module.js";
 import { ConsignmentsModule } from "./consignments/consignments.module.js";
+import { BackupModule } from "./backup/backup.module.js";
 import { OrdersModule } from "./orders/orders.module.js";
 import { PricingModule } from "./pricing/pricing.module.js";
 import { PrintersModule } from "./printers/printers.module.js";
@@ -62,6 +63,7 @@ import { UsersModule } from "./users/users.module.js";
     LicensingModule,
     FirebaseModule,
     ConsignmentsModule,
+    BackupModule,
   ],
 })
 export class AppModule {}

@@ -41,6 +41,18 @@ interface FirebaseStatusResponse {
   message?: string;
 }
 
+function formatStorageMode(mode?: string, available?: boolean) {
+  if (available || mode === "CLOUD_FIREBASE_STORAGE") return "Firebase Cloud Storage";
+  if (mode === "LOCAL_DISK_FALLBACK") return "Armazenamento Local (Disco)";
+  return mode || "Google Cloud Storage / Local";
+}
+
+function formatFirestoreMode(mode?: string, available?: boolean) {
+  if (available || mode === "CLOUD_FIRESTORE_REALTIME") return "Cloud Firestore Realtime";
+  if (mode === "LOCAL_SQL_POLLING") return "Banco de Dados Local (SQL Polling)";
+  return mode || "Google Cloud Firestore";
+}
+
 export function FirebaseCloudTab() {
   const [status, setStatus] = useState<FirebaseStatusResponse | null>(null);
   const [syncStats, setSyncStats] = useState<SyncStats | null>(null);
@@ -61,7 +73,8 @@ export function FirebaseCloudTab() {
       setLoading(true);
       const res = await fetch("/api/firebase/status");
       if (res.ok) {
-        const data = await res.json();
+        const json = await res.json();
+        const data = json.data ?? json;
         setStatus(data);
         if (data.syncStats) {
           setSyncStats(data.syncStats);
@@ -188,7 +201,7 @@ export function FirebaseCloudTab() {
               </p>
             </div>
             <div className="mt-4 pt-3 border-t border-slate-800/60 text-[11px] text-slate-400 font-mono">
-              Provedor: <span className="text-slate-200">{status?.services?.storage?.mode || "detectando..."}</span>
+              Provedor: <span className="text-slate-200">{formatStorageMode(status?.services?.storage?.mode, status?.services?.storage?.available)}</span>
               {status?.services?.storage?.bucket && (
                 <div className="truncate text-slate-500 mt-0.5">Bucket: {status.services.storage.bucket}</div>
               )}
@@ -218,7 +231,7 @@ export function FirebaseCloudTab() {
               </p>
             </div>
             <div className="mt-4 pt-3 border-t border-slate-800/60 text-[11px] text-slate-400 font-mono">
-              Provedor: <span className="text-slate-200">{status?.services?.firestore?.mode || "detectando..."}</span>
+              Provedor: <span className="text-slate-200">{formatFirestoreMode(status?.services?.firestore?.mode, status?.services?.firestore?.available)}</span>
               {status?.projectId && (
                 <div className="truncate text-slate-500 mt-0.5">Projeto: {status.projectId}</div>
               )}

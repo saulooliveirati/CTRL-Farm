@@ -116,7 +116,7 @@ export default function AdminHomePage() {
         )}
 
         {activeTab === "clients" && (
-          <ClientsView clients={clients} onRefresh={loadData} />
+          <ClientsView clients={clients} plans={plans} onRefresh={loadData} />
         )}
 
         {activeTab === "plans" && <PlansView plans={plans} />}

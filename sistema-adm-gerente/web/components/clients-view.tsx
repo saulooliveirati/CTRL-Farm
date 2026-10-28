@@ -25,9 +25,11 @@ import {
 
 export function ClientsView({
   clients,
+  plans,
   onRefresh,
 }: {
   clients: any[];
+  plans?: any[];
   onRefresh: () => void;
 }) {
   const [search, setSearch] = useState("");
@@ -856,12 +858,36 @@ export function ClientsView({
                     onChange={(e) => setApprovalPlan(e.target.value)}
                     className="h-10 w-full rounded-xl border border-[#1b263b] bg-[#091122] px-3 text-white outline-none focus:border-[#00df81]"
                   >
-                    <option value="STARTER">Starter — 3 Impressoras, 2 Usuários (R$ 99/mês)</option>
-                    <option value="PROFESSIONAL">Professional — 10 Impressoras, 5 Usuários (R$ 199/mês)</option>
-                    <option value="BUSINESS">Business — 25 Impressoras, 15 Usuários + IA (R$ 399/mês)</option>
-                    <option value="ENTERPRISE">Enterprise — 100 Impressoras, 50 Usuários + IA + Multi-empresa (R$ 699/mês)</option>
-                    <option value="TRIAL">Trial — 15 Dias de Degustação Completa (Gratuito)</option>
-                    <option value="UNLIMITED_OWNER">Unlimited Owner — Acesso Total Sem Limites (Proprietário)</option>
+                    {plans && plans.length > 0 ? (
+                      plans.map((p) => {
+                        const isTrial = p.code === "TRIAL";
+                        const isOwner = p.code === "UNLIMITED_OWNER";
+                        const isEnterprise = p.code === "ENTERPRISE";
+                        const priceStr = isTrial
+                          ? "Grátis"
+                          : isOwner
+                            ? "Sem Custo"
+                            : isEnterprise
+                              ? "Sob Consulta"
+                              : `R$ ${Number(p.monthlyPrice).toFixed(2).replace(".", ",")}/mês`;
+                        const usersStr = p.maxUsers === -1 ? "Usuários: Ilimitados" : `Usuários: ${p.maxUsers}`;
+                        const printersStr = p.maxPrinters === -1 ? "Impressoras: Ilimitadas" : `Impressoras: ${p.maxPrinters}`;
+                        return (
+                          <option key={p.code} value={p.code}>
+                            {p.name} — {priceStr} ({usersStr}, {printersStr})
+                          </option>
+                        );
+                      })
+                    ) : (
+                      <>
+                        <option value="STARTER">Plano Starter — R$ 15,00/mês (1 Usuário, 2 Impressoras)</option>
+                        <option value="PROFESSIONAL">Plano Professional — R$ 39,90/mês (5 Usuários, 10 Impressoras)</option>
+                        <option value="BUSINESS">Plano Business (Mais Popular) — R$ 89,90/mês (Usuários: Ilimitados, Impressoras: Ilimitadas)</option>
+                        <option value="ENTERPRISE">Plano Enterprise — Sob Consulta (Ilimitado, Franquias & Indústrias)</option>
+                        <option value="TRIAL">Plano Trial (7 Dias Grátis) — Grátis (5 Usuários, 10 Impressoras)</option>
+                        <option value="UNLIMITED_OWNER">Plano Unlimited Owner (Privado) — Sem Custo (Exclusivo Proprietário)</option>
+                      </>
+                    )}
                   </select>
                 </div>
 

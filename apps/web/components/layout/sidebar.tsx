@@ -259,7 +259,8 @@ export function Sidebar({
       { key: "system", label: "Parâmetros da Farm", icon: "⚙️" },
       { key: "lgpd", label: "Privacidade & LGPD", icon: "📜" },
       { key: "licensing", label: "Assinatura & Updates", icon: "🔑" },
-      { key: "firebase", label: "Nuvem & Firebase", icon: "☁️" }
+      { key: "firebase", label: "Nuvem & Firebase", icon: "☁️" },
+      { key: "backup", label: "Backup do Serviço", icon: "💾" }
     );
     return list;
   }, [canShowPermissionsMatrix]);
