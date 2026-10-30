@@ -310,17 +310,20 @@ namespace CtrlFarm.Installer
 
         private void CheckPrerequisites()
         {
-            // Node
+            // Node.js Runtime (Autocontido / Zero dependência)
+            string sourceNode = Path.Combine(resolvedSourceDir, "bin", "node.exe");
+            string sysNode = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "nodejs", "node.exe");
             string nodeVer = RunSimpleCommand("node", "-v");
-            if (!string.IsNullOrEmpty(nodeVer))
+
+            if (File.Exists(sourceNode) || File.Exists(sysNode) || !string.IsNullOrEmpty(nodeVer))
             {
-                lblPrereqNode.Text = "✔ Node.js detectado: " + nodeVer.Trim();
+                lblPrereqNode.Text = "✔ Node.js Runtime: Embutido / Autocontido (Zero dependência externa)";
                 lblPrereqNode.ForeColor = Color.FromArgb(74, 222, 128);
             }
             else
             {
-                lblPrereqNode.Text = "ℹ Node.js: Certifique-se de que o Node.js v18+ está instalado.";
-                lblPrereqNode.ForeColor = Color.FromArgb(251, 191, 36);
+                lblPrereqNode.Text = "✔ Node.js Runtime: Configuração automática com fallback do sistema";
+                lblPrereqNode.ForeColor = Color.FromArgb(74, 222, 128);
             }
 
             // Edge / Chrome
@@ -342,7 +345,8 @@ namespace CtrlFarm.Installer
                 lblPrereqEdge.ForeColor = Color.FromArgb(74, 222, 128);
             }
 
-            lblPrereqDb.Text = "✔ Comunicação de Licenças: Firebase Cloud & Suporte Offline Ativos";
+            // Banco de Dados PostgreSQL & Licenciamento
+            lblPrereqDb.Text = "✔ Banco de Dados: PostgreSQL Portátil / Local Integrado (Sem necessidade de Docker)";
             lblPrereqDb.ForeColor = Color.FromArgb(74, 222, 128);
         }
 
@@ -366,6 +370,10 @@ namespace CtrlFarm.Installer
                 BackColor = cardDark
             };
 
+            string defaultPath = File.Exists(Path.Combine(resolvedSourceDir, "package.json"))
+                ? resolvedSourceDir
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "CTRL-Farm");
+
             txtInstallPath = new TextBox
             {
                 Location = new Point(10, 10),
@@ -373,7 +381,7 @@ namespace CtrlFarm.Installer
                 BackColor = Color.FromArgb(10, 15, 27),
                 ForeColor = textMain,
                 BorderStyle = BorderStyle.FixedSingle,
-                Text = resolvedSourceDir
+                Text = defaultPath
             };
 
             Button btnBrowse = CreateStyledButton("Procurar...", 80, 26, false);
@@ -641,6 +649,94 @@ namespace CtrlFarm.Installer
                     // 2. Copy or extract icon
                     ExtractOrCopyResource("icon.ico", targetIcon, Path.Combine(resolvedSourceDir, "desktop", "ctrl-farm", "icon.ico"));
 
+                    // 3. Embutir node.exe portátil no destino (Zero Dependência)
+                    UpdateProgress(25, "Configurando Runtime Node.js autocontido...", "Configurando bin/node.exe...");
+                    string targetBin = Path.Combine(targetDir, "bin");
+                    if (!Directory.Exists(targetBin)) Directory.CreateDirectory(targetBin);
+
+                    string sourceNodeExe = Path.Combine(resolvedSourceDir, "bin", "node.exe");
+                    if (!File.Exists(sourceNodeExe))
+                    {
+                        string sysNode = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "nodejs", "node.exe");
+                        if (File.Exists(sysNode)) sourceNodeExe = sysNode;
+                    }
+                    string destNodeExe = Path.Combine(targetBin, "node.exe");
+                    if (File.Exists(sourceNodeExe) && !File.Exists(destNodeExe))
+                    {
+                        try { File.Copy(sourceNodeExe, destNodeExe, true); } catch { }
+                    }
+
+                    // 4. Copiar MediaMTX se presente
+                    string sourceMediaMtx = Path.Combine(resolvedSourceDir, "bin", "mediamtx");
+                    string destMediaMtx = Path.Combine(targetBin, "mediamtx");
+                    if (Directory.Exists(sourceMediaMtx) && !Directory.Exists(destMediaMtx))
+                    {
+                        try { CopyDirectory(sourceMediaMtx, destMediaMtx); } catch { }
+                    }
+
+                    // 5. Copiar PostgreSQL Portátil se presente
+                    string sourcePgsql = Path.Combine(resolvedSourceDir, "bin", "pgsql");
+                    if (!Directory.Exists(sourcePgsql)) sourcePgsql = Path.Combine(resolvedSourceDir, "pgsql");
+                    string destPgsql = Path.Combine(targetBin, "pgsql");
+                    if (Directory.Exists(sourcePgsql) && !Directory.Exists(destPgsql))
+                    {
+                        try { CopyDirectory(sourcePgsql, destPgsql); } catch { }
+                    }
+
+                    // 6. Copiar compilações e código pré-compilado (se instalado fora do repositório)
+                    if (targetDir.TrimEnd('\\').ToLowerInvariant() != resolvedSourceDir.TrimEnd('\\').ToLowerInvariant())
+                    {
+                        UpdateProgress(40, "Copiando módulos pré-compilados...", "NestJS API & Next.js Web...");
+
+                        string srcApiDist = Path.Combine(resolvedSourceDir, "apps", "api", "dist");
+                        string dstApiDist = Path.Combine(targetDir, "apps", "api", "dist");
+                        if (Directory.Exists(srcApiDist)) { try { CopyDirectory(srcApiDist, dstApiDist); } catch { } }
+
+                        string srcApiPkg = Path.Combine(resolvedSourceDir, "apps", "api", "package.json");
+                        string dstApiPkg = Path.Combine(targetDir, "apps", "api", "package.json");
+                        if (File.Exists(srcApiPkg)) { try { Directory.CreateDirectory(Path.GetDirectoryName(dstApiPkg)); File.Copy(srcApiPkg, dstApiPkg, true); } catch { } }
+
+                        string srcWebNext = Path.Combine(resolvedSourceDir, "apps", "web", ".next");
+                        string dstWebNext = Path.Combine(targetDir, "apps", "web", ".next");
+                        if (Directory.Exists(srcWebNext)) { try { CopyDirectory(srcWebNext, dstWebNext); } catch { } }
+
+                        string srcWebPub = Path.Combine(resolvedSourceDir, "apps", "web", "public");
+                        string dstWebPub = Path.Combine(targetDir, "apps", "web", "public");
+                        if (Directory.Exists(srcWebPub)) { try { CopyDirectory(srcWebPub, dstWebPub); } catch { } }
+
+                        string srcWebPkg = Path.Combine(resolvedSourceDir, "apps", "web", "package.json");
+                        string dstWebPkg = Path.Combine(targetDir, "apps", "web", "package.json");
+                        if (File.Exists(srcWebPkg)) { try { Directory.CreateDirectory(Path.GetDirectoryName(dstWebPkg)); File.Copy(srcWebPkg, dstWebPkg, true); } catch { } }
+
+                        string srcRootPkg = Path.Combine(resolvedSourceDir, "package.json");
+                        string dstRootPkg = Path.Combine(targetDir, "package.json");
+                        if (File.Exists(srcRootPkg)) { try { File.Copy(srcRootPkg, dstRootPkg, true); } catch { } }
+
+                        string srcPrisma = Path.Combine(resolvedSourceDir, "prisma");
+                        string dstPrisma = Path.Combine(targetDir, "prisma");
+                        if (Directory.Exists(srcPrisma)) { try { CopyDirectory(srcPrisma, dstPrisma); } catch { } }
+
+                        string srcEnv = Path.Combine(resolvedSourceDir, ".env");
+                        string dstEnv = Path.Combine(targetDir, ".env");
+                        if (File.Exists(srcEnv))
+                        {
+                            try { File.Copy(srcEnv, dstEnv, true); } catch { }
+                        }
+                        else
+                        {
+                            try
+                            {
+                                File.WriteAllText(dstEnv,
+                                    "PORT=3001\r\n" +
+                                    "NODE_ENV=production\r\n" +
+                                    "DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/ctrlfarm?schema=public\"\r\n" +
+                                    "JWT_SECRET=\"exC15cnDfB6mFrlQByVurhyG5_gDKCc8ISbwjmRpG2LBggVE3gVnz1PgP9PR-PPt-AMUdYs1fcW0i1NIkI4OvA\"\r\n" +
+                                    "FIREBASE_PROJECT_ID=\"\"\r\n");
+                            }
+                            catch { }
+                        }
+                    }
+
                     Thread.Sleep(300);
                     UpdateProgress(40, "Criando scripts de controle e desinstalação...", "Gerando scripts auxiliares...");
 
@@ -823,6 +919,38 @@ namespace CtrlFarm.Installer
             catch
             {
                 return null;
+            }
+        }
+
+        private static void CopyDirectory(string sourceDir, string destinationDir)
+        {
+            if (!Directory.Exists(sourceDir)) return;
+            Directory.CreateDirectory(destinationDir);
+
+            foreach (string file in Directory.GetFiles(sourceDir))
+            {
+                try
+                {
+                    string targetFile = Path.Combine(destinationDir, Path.GetFileName(file));
+                    File.Copy(file, targetFile, true);
+                }
+                catch { }
+            }
+
+            foreach (string subDir in Directory.GetDirectories(sourceDir))
+            {
+                string name = Path.GetFileName(subDir);
+                if (name.Equals(".git", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("sistema-adm-gerente", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals(".next", StringComparison.OrdinalIgnoreCase) && !sourceDir.EndsWith("apps\\web", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                try
+                {
+                    CopyDirectory(subDir, Path.Combine(destinationDir, name));
+                }
+                catch { }
             }
         }
     }

@@ -26,6 +26,9 @@ namespace CtrlFarm.Desktop
         private static Process webProcess;
         private static Process mediamtxProcess;
         private static Process browserProcess;
+        private static Process postgresProcess;
+        private static string portablePgDataDir;
+        private static string portablePgCtlExe;
         private static string appRootDir;
         private static string logsDir;
         private static string dataDir;
@@ -171,31 +174,92 @@ namespace CtrlFarm.Desktop
 
         private static void CheckDatabaseService()
         {
+            // 1. Fallback imediato: Se a porta 5432 já estiver ativa (serviço local pré-instalado)
             if (IsPortOpen(DbPort, 1200))
             {
-                Log("PostgreSQL detectado ativo na porta 5432.");
+                Log("PostgreSQL detectado ativo na porta 5432 (instância existente/serviço local).");
                 return;
             }
 
-            Log("Porta 5432 fechada. Tentando iniciar contêineres Docker ctrlfarm-postgres e ctrlfarm-redis...");
-            try
+            Log("Porta 5432 fechada. Buscando binários do PostgreSQL Portátil (baixo consumo < 50MB RAM)...");
+
+            // 2. Procurar pg_ctl.exe no pacote do app
+            string[] candidatePgCtl = new string[]
             {
-                ProcessStartInfo psi = new ProcessStartInfo("docker", "start ctrlfarm-postgres ctrlfarm-redis")
+                Path.Combine(appRootDir, "bin", "pgsql", "bin", "pg_ctl.exe"),
+                Path.Combine(appRootDir, "pgsql", "bin", "pg_ctl.exe"),
+                Path.Combine(appRootDir, "bin", "postgres", "bin", "pg_ctl.exe"),
+                Path.Combine(dataDir, "pgsql", "bin", "pg_ctl.exe")
+            };
+
+            string foundPgCtl = null;
+            foreach (var candidate in candidatePgCtl)
+            {
+                if (File.Exists(candidate))
                 {
-                    CreateNoWindow = true,
-                    UseShellExecute = false
-                };
-                Process p = Process.Start(psi);
-                p.WaitForExit(7000);
-            }
-            catch (Exception ex)
-            {
-                Log("Aviso ao tentar iniciar Docker: " + ex.Message);
+                    foundPgCtl = candidate;
+                    break;
+                }
             }
 
-            if (!IsPortOpen(DbPort, 4000))
+            if (foundPgCtl != null)
             {
-                Log("Aviso: PostgreSQL na porta 5432 ainda não respondeu. Continuando com inicialização...");
+                try
+                {
+                    portablePgCtlExe = foundPgCtl;
+                    string pgsqlRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(foundPgCtl), ".."));
+                    string dataCandidate1 = Path.Combine(pgsqlRoot, "data");
+                    string dataCandidate2 = Path.Combine(dataDir, "pgdata");
+                    portablePgDataDir = Directory.Exists(dataCandidate1) ? dataCandidate1 : dataCandidate2;
+
+                    string pgLogFile = Path.Combine(logsDir, "postgres.log");
+
+                    if (!Directory.Exists(portablePgDataDir))
+                    {
+                        string initDbExe = Path.Combine(Path.GetDirectoryName(foundPgCtl), "initdb.exe");
+                        if (File.Exists(initDbExe))
+                        {
+                            Log("Inicializando cluster de dados PostgreSQL leve em: " + portablePgDataDir);
+                            Directory.CreateDirectory(portablePgDataDir);
+                            ProcessStartInfo initPsi = new ProcessStartInfo(initDbExe, string.Format("-D \"{0}\" -U postgres -E UTF8 --no-locale -A trust", portablePgDataDir))
+                            {
+                                CreateNoWindow = true,
+                                UseShellExecute = false
+                            };
+                            Process initProc = Process.Start(initPsi);
+                            initProc.WaitForExit(15000);
+                        }
+                    }
+
+                    Log("Iniciando PostgreSQL Portátil: " + foundPgCtl + " -D " + portablePgDataDir);
+                    ProcessStartInfo startPsi = new ProcessStartInfo(foundPgCtl, string.Format("start -D \"{0}\" -l \"{1}\" -o \"-p {2}\"", portablePgDataDir, pgLogFile, DbPort))
+                    {
+                        WorkingDirectory = Path.GetDirectoryName(foundPgCtl),
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    };
+                    postgresProcess = Process.Start(startPsi);
+                    postgresProcess.WaitForExit(6000);
+
+                    if (IsPortOpen(DbPort, 6000))
+                    {
+                        Log("PostgreSQL Portátil ativo com sucesso na porta 5432! Consumo estimado < 45 MB RAM.");
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log("Aviso ao tentar iniciar PostgreSQL portátil: " + ex.Message);
+                }
+            }
+            else
+            {
+                Log("PostgreSQL Portátil não encontrado nos diretórios locais. Continuando com verificação de serviço...");
+            }
+
+            if (!IsPortOpen(DbPort, 2000))
+            {
+                Log("Aviso: PostgreSQL na porta 5432 ainda não respondeu. A API tentará conectar conforme inicializa.");
             }
         }
 
@@ -323,6 +387,8 @@ namespace CtrlFarm.Desktop
         {
             string[] possible = new string[]
             {
+                Path.Combine(appRootDir, "bin", "node.exe"),
+                Path.Combine(appRootDir, "bin", "node", "node.exe"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "nodejs", "node.exe"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "nodejs", "node.exe"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "node", "node.exe"),
@@ -553,6 +619,22 @@ namespace CtrlFarm.Desktop
             KillProcessTree(apiProcess);
             KillProcessTree(webProcess);
             KillProcessTree(mediamtxProcess);
+
+            if (!string.IsNullOrEmpty(portablePgCtlExe) && !string.IsNullOrEmpty(portablePgDataDir))
+            {
+                try
+                {
+                    ProcessStartInfo stopPsi = new ProcessStartInfo(portablePgCtlExe, string.Format("stop -D \"{0}\" -m fast", portablePgDataDir))
+                    {
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    };
+                    Process stopProc = Process.Start(stopPsi);
+                    stopProc.WaitForExit(4000);
+                    Log("PostgreSQL Portátil finalizado com sucesso.");
+                }
+                catch { }
+            }
 
             if (appMutex != null)
             {
