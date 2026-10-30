@@ -135,20 +135,103 @@
         Monitore telemetria em tempo real, gerencie bobinas de filamento, acompanhe ordens de serviço, conecte webcams locais e controle vendas em consignação em uma interface rápida, industrial e responsiva.
       </p>
 
-      <!-- Action Buttons -->
-      <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-        <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 rounded-2xl bg-brand-neon px-8 py-4 text-sm font-extrabold text-slate-950 hover:bg-brand-neonHover transition-all shadow-xl shadow-emerald-500/25 active:scale-95 group">
-          <svg class="w-5 h-5 text-slate-950 group-hover:-translate-y-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-          </svg>
-          <span>Baixar CTRL-Farm-Setup.exe</span>
-          <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-950/20 text-slate-900">v1.0.0-Beta</span>
-        </a>
+      <!-- Action Buttons (Windows + macOS) -->
+      <div class="mt-8 flex flex-col items-center justify-center">
+        <!-- Dynamic OS Detector Badge -->
+        <div id="os-detected-badge" class="mb-5 inline-flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/90 px-4 py-1.5 text-xs font-semibold text-slate-300 shadow-md">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="os-detected-text">Detectando seu sistema operacional...</span>
+        </div>
 
-        <a href="instalacao.html" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-brand-border bg-brand-surface px-8 py-4 text-sm font-bold text-white hover:bg-brand-surfaceHover hover:border-brand-neon/60 transition-all active:scale-95">
-          <span>📖 Ver Instruções de Instalação</span>
-          <span class="text-brand-neon">→</span>
-        </a>
+        <!-- Side-by-side Dual Installer Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-3xl text-left">
+          
+          <!-- Card Windows -->
+          <div id="card-windows" class="rounded-3xl border border-cyan-500/40 bg-gradient-to-b from-[#101b2b] to-[#0a121f] p-6 shadow-xl relative overflow-hidden transition-all duration-300 hover:border-cyan-400">
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
+                  </svg>
+                </div>
+                <div>
+                  <div class="text-[11px] font-bold uppercase tracking-wider text-cyan-400">Windows 10 / 11</div>
+                  <h3 class="text-lg font-extrabold text-white">CTRL-Farm-Setup.exe</h3>
+                </div>
+              </div>
+              <span id="badge-rec-win" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 uppercase tracking-wide">
+                Recomendado
+              </span>
+            </div>
+
+            <p class="text-xs text-slate-300 mt-3 leading-relaxed">
+              Instalador 1-clique com PostgreSQL portátil embutido (&lt; 40 MB RAM), atalho na Área de Trabalho e inicialização transparente.
+            </p>
+
+            <div class="mt-4 flex flex-col sm:flex-row items-center gap-2.5">
+              <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe" class="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-3 text-xs font-extrabold text-slate-950 hover:bg-cyan-400 transition shadow-lg shadow-cyan-500/20 active:scale-95">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                <span>Baixar para Windows (.exe)</span>
+              </a>
+              <button onclick="copyInstallerLink('https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe', 'btnCopyWin')" id="btnCopyWin" title="Copiar link direto" class="w-full sm:w-auto inline-flex items-center justify-center p-3 rounded-xl border border-brand-border bg-brand-surface hover:bg-brand-surfaceHover text-slate-300 hover:text-white transition text-xs font-semibold">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                </svg>
+              </button>
+            </div>
+            <div class="mt-2.5 text-[10px] text-slate-400 font-mono">64-bit • v1.0.0-Beta • Zero Docker</div>
+          </div>
+
+          <!-- Card macOS -->
+          <div id="card-mac" class="rounded-3xl border border-brand-neon/40 bg-gradient-to-b from-[#0f1f1d] to-[#0a1415] p-6 shadow-xl relative overflow-hidden transition-all duration-300 hover:border-brand-neon">
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-2xl bg-brand-neon/10 border border-brand-neon/30 flex items-center justify-center text-brand-neon">
+                  <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.42c.62-.75 1.04-1.8 1.01-2.85-.9.04-1.98.6-2.62 1.34-.57.65-1.07 1.7-1.02 2.76.99.08 2.01-.5 2.63-1.25z"/>
+                  </svg>
+                </div>
+                <div>
+                  <div class="text-[11px] font-bold uppercase tracking-wider text-brand-neon">macOS 12+</div>
+                  <h3 class="text-lg font-extrabold text-white">CTRL-Farm.dmg</h3>
+                </div>
+              </div>
+              <span id="badge-rec-mac" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-neon/20 text-brand-neon border border-brand-neon/40 uppercase tracking-wide">
+                Recomendado
+              </span>
+            </div>
+
+            <p class="text-xs text-slate-300 mt-3 leading-relaxed">
+              Imagem DMG universal compatível com Apple Silicon (M1/M2/M3/M4) e Intel. Arraste para Aplicativos e execute nativamente.
+            </p>
+
+            <div class="mt-4 flex flex-col sm:flex-row items-center gap-2.5">
+              <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm.dmg" class="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-brand-neon px-5 py-3 text-xs font-extrabold text-slate-950 hover:bg-brand-neonHover transition shadow-lg shadow-emerald-500/20 active:scale-95">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                <span>Baixar para macOS (.dmg)</span>
+              </a>
+              <button onclick="copyInstallerLink('https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm.dmg', 'btnCopyMac')" id="btnCopyMac" title="Copiar link direto" class="w-full sm:w-auto inline-flex items-center justify-center p-3 rounded-xl border border-brand-border bg-brand-surface hover:bg-brand-surfaceHover text-slate-300 hover:text-white transition text-xs font-semibold">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                </svg>
+              </button>
+            </div>
+            <div class="mt-2.5 text-[10px] text-slate-400 font-mono">Universal ARM64 & Intel • v1.0.0-Beta</div>
+          </div>
+
+        </div>
+
+        <div class="mt-6">
+          <a href="instalacao.html" class="inline-flex items-center gap-2 rounded-2xl border border-brand-border bg-brand-surface px-6 py-3 text-xs font-bold text-white hover:bg-brand-surfaceHover hover:border-brand-neon/60 transition-all active:scale-95">
+            <span>📖 Ver Manual Passo a Passo de Instalação (Windows & Mac)</span>
+            <span>→</span>
+          </a>
+        </div>
       </div>
 
       <!-- Quick Specs Counters -->
@@ -206,13 +289,18 @@
             </div>
             <h3 class="font-bold text-white text-base">Passo 1: Download</h3>
             <p class="text-xs text-slate-400 mt-2 leading-relaxed">
-              Baixe o executável oficial de instalação rápida <strong class="text-slate-200">CTRL-Farm-Setup.exe</strong> através do GitHub Releases.
+              Baixe o instalador oficial de acordo com o seu sistema operacional: <strong class="text-slate-200">.exe</strong> para Windows ou <strong class="text-slate-200">.dmg</strong> para macOS.
             </p>
           </div>
-          <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe" class="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-brand-neon hover:underline">
-            <span>Baixar arquivo</span>
-            <span>↓</span>
-          </a>
+          <div class="mt-4 flex items-center gap-2 text-xs font-bold">
+            <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe" class="text-cyan-400 hover:underline">
+              Win (.exe) ↓
+            </a>
+            <span class="text-slate-500">•</span>
+            <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm.dmg" class="text-brand-neon hover:underline">
+              Mac (.dmg) ↓
+            </a>
+          </div>
         </div>
 
         <!-- Passo 2 -->
@@ -223,10 +311,11 @@
             </div>
             <h3 class="font-bold text-white text-base">Passo 2: Instalação 1-Clique</h3>
             <p class="text-xs text-slate-400 mt-2 leading-relaxed">
-              Execute o instalador. Caso o Windows SmartScreen apareça, clique em <strong class="text-slate-200">"Mais informações"</strong> e depois em <strong class="text-slate-200">"Executar assim mesmo"</strong>.
+              <strong>Windows:</strong> Execute o instalador (SmartScreen: <em>"Mais informações"</em> &gt; <em>"Executar assim mesmo"</em>). <br/>
+              <strong>macOS:</strong> Abra o <code>.dmg</code> e arraste para a pasta <code>/Applications</code>.
             </p>
           </div>
-          <span class="mt-4 text-[11px] text-cyan-400 font-mono">Atalho criado no Desktop</span>
+          <span class="mt-4 text-[11px] text-cyan-400 font-mono">Atalhos criados automaticamente</span>
         </div>
 
         <!-- Passo 3 -->
@@ -421,6 +510,13 @@
           </p>
         </div>
 
+        <div class="rounded-2xl border border-brand-border bg-brand-surface p-5">
+          <h3 class="font-bold text-white text-base">Como instalar e executar no macOS se o Gatekeeper avisar que não pode verificar o desenvolvedor?</h3>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            No Mac, baixe o arquivo <strong class="text-white">CTRL-Farm.dmg</strong>, abra a imagem e arraste o app para a pasta <strong class="text-brand-neon">/Applications</strong>. Se o macOS exibir o aviso padrão de segurança ("não foi possível verificar o desenvolvedor"), acesse <strong class="text-white">Ajustes do Sistema &gt; Privacidade e Segurança</strong> e clique em <strong class="text-brand-neon">"Abrir Mesmo Assim"</strong>, ou abra o Terminal e execute o comando: <code class="bg-slate-900 px-2 py-0.5 rounded text-emerald-400">xattr -cr /Applications/CTRL-Farm.app</code>. O aplicativo é 100% seguro e compatível com Apple Silicon (M1/M2/M3/M4) e processadores Intel.
+          </p>
+        </div>
+
       </div>
     </div>
   </section>
@@ -432,16 +528,25 @@
         Pronto para profissionalizar a gestão da sua fazenda 3D?
       </h2>
       <p class="text-slate-300 text-sm mt-3 max-w-xl mx-auto">
-        Baixe o instalador de 1 clique e experimente todos os recursos operacionais do CTRL-Farm agora mesmo.
+        Baixe o instalador oficial para Windows ou macOS e experimente todos os recursos operacionais do CTRL-Farm agora mesmo.
       </p>
       <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-        <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-neon px-8 py-4 text-sm font-extrabold text-slate-950 hover:bg-brand-neonHover transition shadow-xl shadow-emerald-500/20 active:scale-95">
-          <span>Baixar CTRL-Farm-Setup.exe (Oficial)</span>
+        <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-500 px-6 py-3.5 text-sm font-extrabold text-slate-950 hover:bg-cyan-400 transition shadow-xl shadow-cyan-500/20 active:scale-95">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
+          </svg>
+          <span>Baixar para Windows (.exe)</span>
           <span>↓</span>
         </a>
-        <a href="instalacao.html" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-brand-border bg-brand-surface px-8 py-4 text-sm font-bold text-white hover:bg-brand-surfaceHover transition">
-          <span>Ler Manual Passo a Passo</span>
-          <span>📖</span>
+        <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm.dmg" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-neon px-6 py-3.5 text-sm font-extrabold text-slate-950 hover:bg-brand-neonHover transition shadow-xl shadow-emerald-500/20 active:scale-95">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.42c.62-.75 1.04-1.8 1.01-2.85-.9.04-1.98.6-2.62 1.34-.57.65-1.07 1.7-1.02 2.76.99.08 2.01-.5 2.63-1.25z"/>
+          </svg>
+          <span>Baixar para macOS (.dmg)</span>
+          <span>↓</span>
+        </a>
+        <a href="instalacao.html" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-brand-border bg-brand-surface px-6 py-3.5 text-sm font-bold text-white hover:bg-brand-surfaceHover transition">
+          <span>Guia de Instalação 📖</span>
         </a>
       </div>
     </div>
@@ -471,6 +576,45 @@
 
     </div>
   </footer>
+
+  <!-- ================= CLIENT SCRIPT (OS DETECTION & COPY) ================= -->
+  <script>
+    (function detectUserOS() {
+      const ua = (navigator.userAgent || navigator.platform || '').toLowerCase();
+      const badge = document.getElementById('os-detected-badge');
+      const textElem = document.getElementById('os-detected-text');
+      const cardWin = document.getElementById('card-windows');
+      const cardMac = document.getElementById('card-mac');
+      const badgeWin = document.getElementById('badge-rec-win');
+      const badgeMac = document.getElementById('badge-rec-mac');
+
+      const isMac = ua.includes('mac') || ua.includes('darwin') || ua.includes('os x');
+      const isWindows = ua.includes('win');
+
+      if (isMac) {
+        textElem.innerHTML = '🍎 Detectamos que você usa <strong>macOS</strong>. Recomendamos o pacote <strong>CTRL-Farm.dmg</strong>.';
+        cardMac.classList.add('ring-2', 'ring-brand-neon', 'shadow-brand-neon/20');
+        badgeMac.classList.remove('hidden');
+      } else if (isWindows) {
+        textElem.innerHTML = '🪟 Detectamos que você usa <strong>Windows</strong>. Recomendamos o instalador <strong>CTRL-Farm-Setup.exe</strong>.';
+        cardWin.classList.add('ring-2', 'ring-cyan-400', 'shadow-cyan-500/20');
+        badgeWin.classList.remove('hidden');
+      } else {
+        textElem.innerHTML = '⚡ Selecione abaixo a versão correspondente ao seu sistema operacional:';
+      }
+    })();
+
+    function copyInstallerLink(url, buttonId) {
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById(buttonId);
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="text-brand-neon font-bold text-[11px]">✓ Copiado!</span>';
+        setTimeout(() => {
+          btn.innerHTML = originalHtml;
+        }, 2200);
+      });
+    }
+  </script>
 
 </body>
 </html>

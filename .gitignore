@@ -15,14 +15,17 @@ test-results/
 storage/
 backups/
 bin/**/*.exe
+*.dmg
 # Módulo Administrativo Privado do Desenvolvedor
 sistema-adm-gerente/
 desktop/sistema-adm-gerente/
 Sistema-ADM-Gerente*.exe
+*.dmg
 keys/
 *.pem
 *.key
 *.exe
+*.dmg
 *.crt
 .DS_Store
 Thumbs.db
