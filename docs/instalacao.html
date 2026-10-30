@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instruções de Instalação & Ativação — CTRL-Farm</title>
+  <meta name="description" content="Guia passo a passo para baixar, instalar e ativar a plataforma industrial CTRL-Farm em seu computador com Windows 10/11 de forma 100% autocontida.">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark: '#0a0f1b',
+              surface: '#101827',
+              surfaceHover: '#162238',
+              border: '#263246',
+              borderLight: '#334155',
+              neon: '#20c997',
+              neonHover: '#2fe4ad',
+              amber: '#f59e0b',
+              rose: '#fb7185'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      background-color: #0a0f1b;
+      color: #f8fafc;
+      font-family: 'Inter', sans-serif;
+    }
+    .neon-text-glow {
+      text-shadow: 0 0 20px rgba(32, 201, 151, 0.4);
+    }
+    .bg-grid {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(38, 50, 70, 0.25) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(38, 50, 70, 0.25) 1px, transparent 1px);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#0a0f1b] selection:bg-[#20c997] selection:text-slate-950">
+
+  <!-- ================= HEADER ================= -->
+  <header class="sticky top-0 z-50 backdrop-blur-md bg-[#0a0f1b]/85 border-b border-brand-border">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="index.html" class="flex items-center gap-3 group">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#20c997] to-emerald-700 p-0.5 shadow-lg shadow-emerald-950/40 group-hover:scale-105 transition-transform">
+          <div class="w-full h-full bg-[#0a0f1b] rounded-[10px] flex items-center justify-center">
+            <span class="text-xl">🖨️</span>
+          </div>
+        </div>
+        <div class="flex flex-col">
+          <span class="font-extrabold text-xl tracking-tight text-white flex items-center gap-1.5">
+            CTRL<span class="text-brand-neon">-Farm</span>
+            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-brand-neon/10 text-brand-neon border border-brand-neon/30">
+              Manual Oficial
+            </span>
+          </span>
+          <span class="text-[11px] text-slate-400 font-medium">Instruções de Instalação & Ativação</span>
+        </div>
+      </a>
+
+      <!-- Quick Nav -->
+      <div class="flex items-center gap-4">
+        <a href="index.html" class="text-xs font-semibold text-slate-300 hover:text-white transition flex items-center gap-1">
+          <span>← Voltar para o Início</span>
+        </a>
+        <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe" class="hidden sm:inline-flex items-center gap-2 rounded-xl bg-brand-neon px-4 py-2 text-xs font-bold text-slate-950 hover:bg-brand-neonHover transition shadow-md shadow-emerald-500/20">
+          <span>Baixar Setup (.exe)</span>
+          <span>↓</span>
+        </a>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ================= HERO & DOWNLOAD CARD ================= -->
+  <section class="py-12 bg-grid border-b border-brand-border">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center">
+        <div class="inline-flex items-center gap-2 rounded-full border border-brand-neon/40 bg-emerald-950/40 px-3.5 py-1 text-xs font-bold text-brand-neon mb-4">
+          <span>📦 Pacote Oficial Autocontido</span>
+          <span>•</span>
+          <span class="text-white">v1.0.0-Beta (Pioneiros)</span>
+        </div>
+        <h1 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+          Guia de Instalação do <span class="text-brand-neon neon-text-glow">CTRL-Farm</span>
+        </h1>
+        <p class="mt-4 text-slate-300 text-sm sm:text-base max-w-2xl mx-auto">
+          Siga as instruções abaixo para instalar e liberar o seu acesso à plataforma industrial de impressão 3D em menos de 2 minutos.
+        </p>
+      </div>
+
+      <!-- Main Download Card -->
+      <div class="mt-8 rounded-3xl border border-brand-neon/40 bg-gradient-to-b from-[#101c2e] to-[#0c1424] p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+        <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-brand-neon/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+          <div>
+            <span class="text-xs uppercase tracking-wider font-bold text-brand-neon">Download Direto</span>
+            <h2 class="text-2xl font-extrabold text-white mt-1">CTRL-Farm-Setup.exe</h2>
+            <p class="text-xs text-slate-300 mt-2 max-w-md leading-relaxed">
+              Instalador com 1 clique para Windows 10 e 11 (64-bit). Inclui PostgreSQL leve integrado (&lt; 40 MB RAM), Node.js embutido e atalhos automáticos.
+            </p>
+            <div class="flex flex-wrap items-center gap-4 mt-4 text-[11px] text-slate-400 font-mono">
+              <span class="flex items-center gap-1 text-emerald-400">
+                <span>✔</span> Zero Docker
+              </span>
+              <span>•</span>
+              <span class="flex items-center gap-1 text-emerald-400">
+                <span>✔</span> Não requer Node pré-instalado
+              </span>
+              <span>•</span>
+              <span>Tamanho: ~130 KB (Autocontido)</span>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-3 shrink-0">
+            <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe" class="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-brand-neon px-8 py-4 text-sm font-extrabold text-slate-950 hover:bg-brand-neonHover transition shadow-xl shadow-emerald-500/25 active:scale-95">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              <span>Baixar CTRL-Farm-Setup.exe</span>
+            </a>
+
+            <button type="button" onclick="copyDownloadUrl()" id="btnCopyUrl" class="inline-flex items-center justify-center gap-2 rounded-xl border border-brand-border bg-[#0a0f1b] px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white hover:border-brand-neon/50 transition">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+              </svg>
+              <span id="copyUrlText">Copiar Link de Download</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= GUIA PASSO A PASSO ================= -->
+  <main class="py-16 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+
+    <!-- Requisitos Mínimos -->
+    <section>
+      <div class="flex items-center gap-3 mb-6">
+        <span class="text-xl">💻</span>
+        <h2 class="text-2xl font-bold text-white">Requisitos do Sistema</h2>
+      </div>
+
+      <div class="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="rounded-2xl border border-brand-border bg-brand-surface p-4">
+          <div class="text-[11px] font-semibold uppercase text-slate-400">Sistema Operacional</div>
+          <div class="font-bold text-white mt-1">Windows 10 ou 11</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Arquitetura 64-bit</div>
+        </div>
+        <div class="rounded-2xl border border-brand-border bg-brand-surface p-4">
+          <div class="text-[11px] font-semibold uppercase text-slate-400">Memória RAM</div>
+          <div class="font-bold text-white mt-1">Mínimo 4 GB RAM</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Recomendado: 8 GB</div>
+        </div>
+        <div class="rounded-2xl border border-brand-border bg-brand-surface p-4">
+          <div class="text-[11px] font-semibold uppercase text-slate-400">Espaço em Disco</div>
+          <div class="font-bold text-white mt-1">500 MB Livres</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Para logs e arquivos 3D</div>
+        </div>
+        <div class="rounded-2xl border border-brand-border bg-brand-surface p-4">
+          <div class="text-[11px] font-semibold uppercase text-slate-400">Navegador</div>
+          <div class="font-bold text-white mt-1">Edge ou Chrome</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Motor nativo Chromium</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Infográfico Visual -->
+    <section class="rounded-3xl border border-brand-border bg-[#070c16] p-4 shadow-xl">
+      <img src="images/como-instalar-ctrl-farm.jpg" alt="Infográfico Passo a Passo" class="w-full h-auto rounded-2xl border border-slate-800" />
+    </section>
+
+    <!-- Passo a Passo Detalhado -->
+    <section class="space-y-10">
+
+      <!-- PASSO 1 -->
+      <div id="passo1" class="rounded-3xl border border-brand-border bg-brand-surface p-6 sm:p-8 space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-brand-neon font-extrabold flex items-center justify-center font-mono">
+            01
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-white">Passo 1 — Download do Instalador Único</h3>
+            <p class="text-xs text-slate-400">Arquivo instalador executável oficial</p>
+          </div>
+        </div>
+        <p class="text-sm text-slate-300 leading-relaxed">
+          Baixe o instalador <strong>`CTRL-Farm-Setup.exe`</strong> diretamente pelo link do GitHub Releases ou pelo link compartilhado pelo desenvolvedor.
+        </p>
+        <div class="rounded-xl border border-slate-800 bg-[#070c16] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div class="font-mono text-slate-300 truncate">
+            https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe
+          </div>
+          <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe" class="shrink-0 rounded-lg bg-brand-neon px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-brand-neonHover transition">
+            Baixar Agora
+          </a>
+        </div>
+      </div>
+
+      <!-- PASSO 2 (COM BYPASS SMART SCREEN) -->
+      <div id="passo2" class="rounded-3xl border border-brand-border bg-brand-surface p-6 sm:p-8 space-y-5">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-extrabold flex items-center justify-center font-mono">
+            02
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-white">Passo 2 — Instalação com 1 Clique (Bypass do SmartScreen)</h3>
+            <p class="text-xs text-slate-400">Executando o instalador no Windows 10/11</p>
+          </div>
+        </div>
+        
+        <p class="text-sm text-slate-300 leading-relaxed">
+          Dê dois cliques no arquivo <strong class="text-white">CTRL-Farm-Setup.exe</strong> baixado.
+        </p>
+
+        <!-- Simulação Visual do SmartScreen -->
+        <div class="rounded-2xl border border-cyan-500/40 bg-gradient-to-r from-blue-950/40 via-cyan-950/20 to-blue-950/40 p-5 space-y-3">
+          <div class="flex items-center gap-2 text-cyan-300 font-bold text-xs uppercase tracking-wider">
+            <span>🛡️</span>
+            <span>Aviso de Desenvolvedor Independente (Windows Defender SmartScreen)</span>
+          </div>
+          <p class="text-xs text-slate-200 leading-relaxed">
+            Como o software é uma compilação Beta recente e distribuída de forma independente (sem assinatura paga de US$ 500/ano da Microsoft), o Windows pode exibir uma janela azul dizendo: <br/>
+            <span class="font-semibold text-white">"O Windows protegeu o seu computador"</span>.
+          </p>
+          <div class="rounded-xl border border-cyan-500/30 bg-[#081224] p-4 text-xs space-y-2">
+            <div class="font-bold text-white">Como prosseguir com segurança:</div>
+            <ol class="list-decimal list-inside space-y-1.5 text-slate-300">
+              <li>Na janela azul, clique no link sublinhado: <strong class="text-cyan-400">"Mais informações"</strong>.</li>
+              <li>Em seguida, um botão aparecerá no canto inferior direito. Clique em: <strong class="text-brand-neon bg-emerald-950/60 px-2 py-0.5 rounded border border-brand-neon/40">"Executar assim mesmo"</strong>.</li>
+            </ol>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-300 leading-relaxed">
+          O instalador do CTRL-Farm será aberto. Clique em <strong>"Avançar"</strong> e em <strong>"Instalar"</strong>. O processo dura menos de 1 minuto e cria automaticamente o atalho <strong class="text-brand-neon">CTRL-Farm</strong> na sua Área de Trabalho e no Menu Iniciar.
+        </p>
+      </div>
+
+      <!-- PASSO 3 -->
+      <div id="passo3" class="rounded-3xl border border-brand-border bg-brand-surface p-6 sm:p-8 space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 font-extrabold flex items-center justify-center font-mono">
+            03
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-white">Passo 3 — Inicialização Automática e Janela Nativa</h3>
+            <p class="text-xs text-slate-400">Ambiente industrial desktop pronto</p>
+          </div>
+        </div>
+        <p class="text-sm text-slate-300 leading-relaxed">
+          Ao término da instalação (ou clicando no atalho da Área de Trabalho), o CTRL-Farm executará os serviços locais:
+        </p>
+        <ul class="grid sm:grid-cols-2 gap-3 text-xs text-slate-300">
+          <li class="rounded-xl border border-slate-800 bg-[#070c16] p-3 flex items-center gap-2">
+            <span class="text-brand-neon">✔</span>
+            <span>PostgreSQL Portátil (Porta 5432 - consumo &lt; 40 MB)</span>
+          </li>
+          <li class="rounded-xl border border-slate-800 bg-[#070c16] p-3 flex items-center gap-2">
+            <span class="text-brand-neon">✔</span>
+            <span>API NestJS & Licensing (Porta local 3001)</span>
+          </li>
+          <li class="rounded-xl border border-slate-800 bg-[#070c16] p-3 flex items-center gap-2">
+            <span class="text-brand-neon">✔</span>
+            <span>Interface Web Industrial Next.js (Porta local 3000)</span>
+          </li>
+          <li class="rounded-xl border border-slate-800 bg-[#070c16] p-3 flex items-center gap-2">
+            <span class="text-brand-neon">✔</span>
+            <span>Servidor de Transmissão de Câmeras MediaMTX (Porta 8890)</span>
+          </li>
+        </ul>
+        <p class="text-xs text-slate-400">
+          Uma janela limpa e dedicada será aberta, com o ícone de status ativo na bandeja do Windows (próximo ao relógio).
+        </p>
+      </div>
+
+      <!-- PASSO 4 (ATIVAÇÃO) -->
+      <div id="passo4" class="rounded-3xl border border-brand-border bg-brand-surface p-6 sm:p-8 space-y-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 font-extrabold flex items-center justify-center font-mono">
+            04
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-white">Passo 4 — Solicitação e Inserção da Chave de Licença</h3>
+            <p class="text-xs text-slate-400">Desbloqueio com criptografia assimétrica RSA</p>
+          </div>
+        </div>
+        
+        <p class="text-sm text-slate-300 leading-relaxed">
+          No primeiro acesso, a aplicação apresentará a tela de bloqueio e ativação do sistema:
+        </p>
+
+        <div class="space-y-3">
+          <div class="rounded-2xl border border-purple-500/30 bg-purple-950/20 p-5 space-y-3">
+            <div class="font-bold text-white text-xs">Procedimento de Liberação:</div>
+            <ol class="list-decimal list-inside space-y-2 text-xs text-slate-300">
+              <li>Na tela inicial do CTRL-Farm, localize o campo com o seu <strong class="text-purple-300">ID de Instalação / Chave da Máquina</strong>.</li>
+              <li>Clique no botão <strong>"Copiar Código"</strong> e envie ao desenvolvedor/administrador por WhatsApp ou e-mail.</li>
+              <li>O desenvolvedor fará a aprovação da sua empresa no <strong>Sistema ADM Gerente</strong> e lhe fornecerá a sua <strong class="text-brand-neon">Chave Criptográfica de Licença</strong>.</li>
+              <li>Cole a chave no aplicativo e clique no botão <strong class="text-white bg-emerald-600 px-2 py-0.5 rounded">"Ativar Sistema"</strong>.</li>
+            </ol>
+          </div>
+        </div>
+
+        <p class="text-xs text-brand-neon font-medium">
+          ✔ Assim que a chave for validada, o painel do CTRL-Farm será totalmente desbloqueado com todas as impressoras, bobinas, consignações e finanças ativas!
+        </p>
+      </div>
+
+    </section>
+
+    <!-- Suporte e Diagnóstico -->
+    <section class="rounded-3xl border border-brand-border bg-gradient-to-r from-slate-900 to-[#0e1728] p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+      <div>
+        <h3 class="text-lg font-bold text-white">Precisa de Ajuda ou Suporte Técnico?</h3>
+        <p class="text-xs text-slate-400 mt-1 max-w-lg">
+          Em caso de dúvidas na instalação, os relatórios completos de inicialização e diagnóstico ficam gravados no seu computador em:
+        </p>
+        <code class="mt-2 inline-block font-mono text-[11px] bg-slate-950 px-3 py-1.5 rounded-lg text-emerald-400 border border-slate-800">
+          %LOCALAPPDATA%\CTRL-Farm\Logs
+        </code>
+      </div>
+      <a href="https://github.com/saulooliveirati/CTRL-Farm" target="_blank" class="shrink-0 rounded-xl bg-brand-neon px-5 py-3 text-xs font-bold text-slate-950 hover:bg-brand-neonHover transition">
+        Ver Repositório GitHub
+      </a>
+    </section>
+
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="border-t border-brand-border bg-[#070b14] py-10 text-xs text-slate-400 mt-auto">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span>🖨️</span>
+        <span class="font-bold text-white">CTRL-Farm</span>
+        <span>• Manual de Instalação e Ativação v1.0.0-Beta</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="index.html" class="hover:text-white transition">Página Principal</a>
+        <a href="https://github.com/saulooliveirati/CTRL-Farm/releases" target="_blank" class="hover:text-white transition">Releases Oficiais</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function copyDownloadUrl() {
+      const url = "https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe";
+      navigator.clipboard.writeText(url).then(() => {
+        const textElem = document.getElementById("copyUrlText");
+        const original = textElem.innerText;
+        textElem.innerText = "Link Copiado com Sucesso!";
+        textElem.classList.add("text-brand-neon");
+        setTimeout(() => {
+          textElem.innerText = original;
+          textElem.classList.remove("text-brand-neon");
+        }, 2500);
+      });
+    }
+  </script>
+
+</body>
+</html>

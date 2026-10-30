@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTRL-Farm — Plataforma Industrial de Gestão e Monitoramento de Impressão 3D</title>
+  <meta name="description" content="Controle total da sua fazenda de impressão 3D: monitoramento multi-impressora, telemetria em tempo real, estoque de filamentos, faturamento e gestão de consignados em um só lugar.">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  
+  <!-- Tailwind CSS CDN para renderização de alta fidelidade -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark: '#0a0f1b',
+              surface: '#101827',
+              surfaceHover: '#162238',
+              border: '#263246',
+              borderLight: '#334155',
+              neon: '#20c997',
+              neonHover: '#2fe4ad',
+              amber: '#f59e0b',
+              rose: '#fb7185'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Fontes do Google -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      background-color: #0a0f1b;
+      color: #f8fafc;
+      font-family: 'Inter', sans-serif;
+    }
+    .neon-glow {
+      box-shadow: 0 0 35px -5px rgba(32, 201, 151, 0.3);
+    }
+    .neon-text-glow {
+      text-shadow: 0 0 20px rgba(32, 201, 151, 0.4);
+    }
+    .bg-grid {
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(38, 50, 70, 0.25) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(38, 50, 70, 0.25) 1px, transparent 1px);
+    }
+    .hero-gradient {
+      background: radial-gradient(circle at 50% -10%, rgba(32, 201, 151, 0.18), transparent 70%);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#0a0f1b] selection:bg-[#20c997] selection:text-slate-950">
+
+  <!-- ================= TOP HEADER / NAVBAR ================= -->
+  <header class="sticky top-0 z-50 backdrop-blur-md bg-[#0a0f1b]/85 border-b border-brand-border">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="index.html" class="flex items-center gap-3 group">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#20c997] to-emerald-700 p-0.5 shadow-lg shadow-emerald-950/40 group-hover:scale-105 transition-transform duration-200">
+          <div class="w-full h-full bg-[#0a0f1b] rounded-[10px] flex items-center justify-center">
+            <span class="text-xl">🖨️</span>
+          </div>
+        </div>
+        <div class="flex flex-col">
+          <span class="font-extrabold text-xl tracking-tight text-white flex items-center gap-1.5">
+            CTRL<span class="text-brand-neon">-Farm</span>
+            <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-brand-neon/10 text-brand-neon border border-brand-neon/30">
+              v1.0.0-Beta
+            </span>
+          </span>
+          <span class="text-[11px] text-slate-400 font-medium">Plataforma Industrial de Impressão 3D</span>
+        </div>
+      </a>
+
+      <!-- Navigation Links -->
+      <nav class="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-300">
+        <a href="#recursos" class="hover:text-brand-neon transition">Recursos</a>
+        <a href="#arquitetura" class="hover:text-brand-neon transition">Arquitetura</a>
+        <a href="instalacao.html" class="text-brand-neon font-bold flex items-center gap-1 hover:text-brand-neonHover transition">
+          <span>Guia de Instalação</span>
+          <span class="text-xs">↗</span>
+        </a>
+        <a href="#faq" class="hover:text-brand-neon transition">Dúvidas</a>
+      </nav>
+
+      <!-- CTA Button -->
+      <div class="flex items-center gap-3">
+        <a href="instalacao.html" class="inline-flex items-center gap-2 rounded-xl bg-brand-neon px-5 py-2.5 text-xs font-bold text-slate-950 hover:bg-brand-neonHover transition-all shadow-md shadow-emerald-500/20 active:scale-95">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          <span>Baixar CTRL-Farm</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= HERO SECTION ================= -->
+  <section class="relative overflow-hidden pt-12 pb-20 md:pt-20 md:pb-32 bg-grid hero-gradient">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+      
+      <!-- Release Pill Badge -->
+      <div class="inline-flex items-center gap-2 rounded-full border border-brand-neon/40 bg-emerald-950/40 px-4 py-1.5 text-xs font-medium text-brand-neon mb-8 shadow-lg shadow-emerald-950/50">
+        <span class="flex h-2 w-2 rounded-full bg-brand-neon animate-pulse"></span>
+        <span>Versão Oficial de Testes Beta para Fazendas Pioneiras</span>
+        <span class="text-slate-400">|</span>
+        <span class="text-white font-semibold">100% Autocontido & Sem Docker</span>
+      </div>
+
+      <!-- Main Headline -->
+      <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white max-w-4xl mx-auto leading-tight sm:leading-none">
+        Controle Industrial da sua <br class="hidden sm:inline" />
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-brand-neon to-cyan-400 neon-text-glow">
+          Farm de Impressão 3D
+        </span>
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="mt-6 text-base sm:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
+        Monitore telemetria em tempo real, gerencie bobinas de filamento, acompanhe ordens de serviço, conecte webcams locais e controle vendas em consignação em uma interface rápida, industrial e responsiva.
+      </p>
+
+      <!-- Action Buttons -->
+      <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe" class="w-full sm:w-auto inline-flex items-center justify-center gap-3 rounded-2xl bg-brand-neon px-8 py-4 text-sm font-extrabold text-slate-950 hover:bg-brand-neonHover transition-all shadow-xl shadow-emerald-500/25 active:scale-95 group">
+          <svg class="w-5 h-5 text-slate-950 group-hover:-translate-y-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          <span>Baixar CTRL-Farm-Setup.exe</span>
+          <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-950/20 text-slate-900">v1.0.0-Beta</span>
+        </a>
+
+        <a href="instalacao.html" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-brand-border bg-brand-surface px-8 py-4 text-sm font-bold text-white hover:bg-brand-surfaceHover hover:border-brand-neon/60 transition-all active:scale-95">
+          <span>📖 Ver Instruções de Instalação</span>
+          <span class="text-brand-neon">→</span>
+        </a>
+      </div>
+
+      <!-- Quick Specs Counters -->
+      <div class="mt-14 pt-8 border-t border-brand-border/60 grid grid-cols-2 sm:grid-cols-4 gap-6 text-left max-w-4xl mx-auto">
+        <div class="bg-brand-surface/60 border border-brand-border p-4 rounded-2xl">
+          <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Instalação</div>
+          <div class="text-lg font-bold text-brand-neon font-mono mt-1">1 Clique Nativo</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Sem comandos manuais</div>
+        </div>
+        <div class="bg-brand-surface/60 border border-brand-border p-4 rounded-2xl">
+          <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold">PostgreSQL</div>
+          <div class="text-lg font-bold text-brand-neon font-mono mt-1">&lt; 40 MB RAM</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Zero exigência de Docker</div>
+        </div>
+        <div class="bg-brand-surface/60 border border-brand-border p-4 rounded-2xl">
+          <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Node.js Runtime</div>
+          <div class="text-lg font-bold text-brand-neon font-mono mt-1">100% Embutido</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Sem dependências externas</div>
+        </div>
+        <div class="bg-brand-surface/60 border border-brand-border p-4 rounded-2xl">
+          <div class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Licenciamento</div>
+          <div class="text-lg font-bold text-brand-neon font-mono mt-1">RSA Seguro</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Isolamento multi-tenant</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= GUIA RÁPIDO VISUAL (INFOGRÁFICO) ================= -->
+  <section class="py-16 bg-[#080d17] border-y border-brand-border">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <div class="text-center max-w-2xl mx-auto mb-12">
+        <span class="text-xs uppercase tracking-widest font-bold text-brand-neon">Simplicidade de Implantação</span>
+        <h2 class="text-3xl font-extrabold text-white mt-2">Como Começar em 4 Passos Rápidos</h2>
+        <p class="text-slate-400 text-sm mt-2">
+          Do download ao painel completo de controle em menos de 2 minutos.
+        </p>
+      </div>
+
+      <!-- Imagem Oficial do Guia -->
+      <div class="rounded-3xl border border-brand-border bg-[#070c16] p-3 shadow-2xl overflow-hidden group">
+        <img src="images/como-instalar-ctrl-farm.jpg" alt="Guia Visual de Como Instalar o CTRL-Farm" class="w-full h-auto rounded-2xl object-cover border border-slate-800/60" />
+      </div>
+
+      <!-- 4 Passos Estruturados -->
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-12">
+        
+        <!-- Passo 1 -->
+        <div class="rounded-2xl border border-brand-border bg-brand-surface p-6 flex flex-col justify-between">
+          <div>
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-brand-neon font-extrabold flex items-center justify-center text-sm font-mono mb-4">
+              01
+            </div>
+            <h3 class="font-bold text-white text-base">Passo 1: Download</h3>
+            <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+              Baixe o executável oficial de instalação rápida <strong class="text-slate-200">CTRL-Farm-Setup.exe</strong> através do GitHub Releases.
+            </p>
+          </div>
+          <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe" class="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-brand-neon hover:underline">
+            <span>Baixar arquivo</span>
+            <span>↓</span>
+          </a>
+        </div>
+
+        <!-- Passo 2 -->
+        <div class="rounded-2xl border border-brand-border bg-brand-surface p-6 flex flex-col justify-between">
+          <div>
+            <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-extrabold flex items-center justify-center text-sm font-mono mb-4">
+              02
+            </div>
+            <h3 class="font-bold text-white text-base">Passo 2: Instalação 1-Clique</h3>
+            <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+              Execute o instalador. Caso o Windows SmartScreen apareça, clique em <strong class="text-slate-200">"Mais informações"</strong> e depois em <strong class="text-slate-200">"Executar assim mesmo"</strong>.
+            </p>
+          </div>
+          <span class="mt-4 text-[11px] text-cyan-400 font-mono">Atalho criado no Desktop</span>
+        </div>
+
+        <!-- Passo 3 -->
+        <div class="rounded-2xl border border-brand-border bg-brand-surface p-6 flex flex-col justify-between">
+          <div>
+            <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 font-extrabold flex items-center justify-center text-sm font-mono mb-4">
+              03
+            </div>
+            <h3 class="font-bold text-white text-base">Passo 3: Inicialização</h3>
+            <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+              O aplicativo inicia silenciosamente o banco de dados leve e os serviços locais, abrindo uma janela limpa e nativa de desktop.
+            </p>
+          </div>
+          <span class="mt-4 text-[11px] text-amber-400 font-mono">Sem barras de navegador</span>
+        </div>
+
+        <!-- Passo 4 -->
+        <div class="rounded-2xl border border-brand-border bg-brand-surface p-6 flex flex-col justify-between">
+          <div>
+            <div class="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 font-extrabold flex items-center justify-center text-sm font-mono mb-4">
+              04
+            </div>
+            <h3 class="font-bold text-white text-base">Passo 4: Ativação</h3>
+            <p class="text-xs text-slate-400 mt-2 leading-relaxed">
+              Copie o seu <strong class="text-slate-200">ID de Instalação</strong> gerado na tela inicial e envie ao administrador para receber a sua Chave de Licença de liberação.
+            </p>
+          </div>
+          <a href="instalacao.html#passo4" class="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-purple-400 hover:underline">
+            <span>Ver como ativar</span>
+            <span>→</span>
+          </a>
+        </div>
+
+      </div>
+
+      <div class="mt-8 text-center">
+        <a href="instalacao.html" class="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-6 py-3 text-xs font-bold text-white hover:bg-slate-700 hover:text-brand-neon transition border border-slate-700">
+          <span>Ver Página Completa de Instruções de Download & Bypass</span>
+          <span>→</span>
+        </a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= RECURSOS PRINCIPAIS ================= -->
+  <section id="recursos" class="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto mb-16">
+      <span class="text-xs uppercase tracking-widest font-bold text-brand-neon">Funcionalidades Integradas</span>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-white mt-2">Construído para a Realidade Operacional de uma Farm 3D</h2>
+      <p class="text-slate-400 text-sm mt-3">
+        Cada módulo foi planejado para reduzir o desperdício de tempo, evitar falhas e maximizar o lucro de cada peça impressa.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-8">
+      
+      <!-- Card 1 -->
+      <div class="rounded-3xl border border-brand-border bg-brand-surface p-8 hover:border-brand-neon/50 transition-all duration-300 group">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+          📊
+        </div>
+        <h3 class="text-xl font-bold text-white">Dashboard Industrial & Modular</h3>
+        <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+          Design System Industrial Dark Mode com métricas em tempo real de impressoras ativas, fila de produção, consumo de bobinas e faturamento mensal.
+        </p>
+        <ul class="mt-6 space-y-2 text-xs text-slate-300">
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Cards modulares e personalizáveis</li>
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Monitoramento de temperaturas bico/mesa</li>
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Visão consolidada da operação</li>
+        </ul>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="rounded-3xl border border-brand-border bg-brand-surface p-8 hover:border-brand-neon/50 transition-all duration-300 group">
+        <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+          🤝
+        </div>
+        <h3 class="text-xl font-bold text-white">Gestão Completa de Consignados</h3>
+        <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+          Controle produtos enviados para parceiros e pontos de venda externos com rastreamento de estoque isolado, devoluções e comissões automáticas.
+        </p>
+        <ul class="mt-6 space-y-2 text-xs text-slate-300">
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Envio, venda, devolução e avarias</li>
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Acertos financeiros por PIX, cartão e dinheiro</li>
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Relatórios exportáveis em PDF, Excel e CSV</li>
+        </ul>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="rounded-3xl border border-brand-border bg-brand-surface p-8 hover:border-brand-neon/50 transition-all duration-300 group">
+        <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+          🧵
+        </div>
+        <h3 class="text-xl font-bold text-white">Estoque Inteligente de Filamentos</h3>
+        <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+          Rastreie gramas restantes por carretel, cores, marcas (PLA, PETG, ABS, TPU) e receba alertas automáticos antes que o filamento acabe durante uma impressão crítica.
+        </p>
+        <ul class="mt-6 space-y-2 text-xs text-slate-300">
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Cálculo preciso de custo por grama</li>
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Baixa automática na finalização de ordens</li>
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Previsão de esgotamento e reposição</li>
+        </ul>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="rounded-3xl border border-brand-border bg-brand-surface p-8 hover:border-brand-neon/50 transition-all duration-300 group">
+        <div class="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+          📹
+        </div>
+        <h3 class="text-xl font-bold text-white">Câmeras & MediaMTX Integrado</h3>
+        <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+          Transmissão ao vivo de webcams e fluxos RTSP de cada impressora diretamente no seu painel com zero latência utilizando o MediaMTX local embutido.
+        </p>
+        <ul class="mt-6 space-y-2 text-xs text-slate-300">
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Compatível com câmeras USB e IP</li>
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Monitoramento de camadas e falhas</li>
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Inicialização silenciosa como serviço</li>
+        </ul>
+      </div>
+
+      <!-- Card 5 -->
+      <div class="rounded-3xl border border-brand-border bg-brand-surface p-8 hover:border-brand-neon/50 transition-all duration-300 group">
+        <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+          🛡️
+        </div>
+        <h3 class="text-xl font-bold text-white">Backup Completo do Serviço</h3>
+        <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+          Exporte todo o banco de dados da sua empresa em um arquivo JSON com soma de verificação SHA-256 e restaure o sistema com 1 clique a qualquer momento.
+        </p>
+        <ul class="mt-6 space-y-2 text-xs text-slate-300">
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Exportação de produtos, estoques e histórico</li>
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Restauração transacional segura</li>
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Proteção contra perda de dados operacionais</li>
+        </ul>
+      </div>
+
+      <!-- Card 6 -->
+      <div class="rounded-3xl border border-brand-border bg-brand-surface p-8 hover:border-brand-neon/50 transition-all duration-300 group">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+          ⚡
+        </div>
+        <h3 class="text-xl font-bold text-white">Nuvem Híbrida & Offline</h3>
+        <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+          Opere 100% desconectado da internet se necessário. Ao conectar-se, o sistema sincroniza chaves e notificações com segurança de nível industrial.
+        </p>
+        <ul class="mt-6 space-y-2 text-xs text-slate-300">
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Independência total da nuvem para operar</li>
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Validação RSA assimétrica offline</li>
+          <li class="flex items-center gap-2"><span class="text-brand-neon">✔</span> Suporte nativo ao Windows 10 e 11</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= FAQ SECTION ================= -->
+  <section id="faq" class="py-16 bg-[#080d17] border-t border-brand-border">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <span class="text-xs uppercase tracking-widest font-bold text-brand-neon">Perguntas Frequentes</span>
+        <h2 class="text-3xl font-extrabold text-white mt-2">Dúvidas Comuns sobre o CTRL-Farm</h2>
+      </div>
+
+      <div class="space-y-4">
+        
+        <div class="rounded-2xl border border-brand-border bg-brand-surface p-5">
+          <h3 class="font-bold text-white text-base">Preciso instalar Docker ou configurar banco de dados no meu computador?</h3>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            Não! Essa é uma das principais melhorias do instalador oficial v1.0.0-Beta. O instalador configura um PostgreSQL portátil ultraleve que roda silenciosamente em segundo plano consumindo menos de 40 MB de memória RAM, sem exigir Docker, WSL2 ou virtualização na BIOS.
+          </p>
+        </div>
+
+        <div class="rounded-2xl border border-brand-border bg-brand-surface p-5">
+          <h3 class="font-bold text-white text-base">O Windows SmartScreen exibiu uma tela azul ao abrir o arquivo. O que fazer?</h3>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            Esse é o comportamento padrão do Windows Defender SmartScreen para executáveis independentes recentes que ainda não possuem milhares de downloads acumulados na Microsoft Store. Para prosseguir, basta clicar no texto sublinhado <strong class="text-white">"Mais informações"</strong> e em seguida no botão <strong class="text-brand-neon">"Executar assim mesmo"</strong>. O instalador é 100% seguro.
+          </p>
+        </div>
+
+        <div class="rounded-2xl border border-brand-border bg-brand-surface p-5">
+          <h3 class="font-bold text-white text-base">Como funciona a solicitação e ativação de licença?</h3>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            No primeiro acesso após instalar o CTRL-Farm, o sistema abrirá a tela inicial exibindo o seu <strong class="text-white">ID de Instalação / Chave da Máquina</strong>. Basta copiar esse código e enviá-lo ao administrador. Ele gerará a sua chave criptográfica de liberação e você a colará no aplicativo para ter acesso total.
+          </p>
+        </div>
+
+        <div class="rounded-2xl border border-brand-border bg-brand-surface p-5">
+          <h3 class="font-bold text-white text-base">O sistema continuará funcionando se eu ficar sem internet?</h3>
+          <p class="text-slate-400 text-xs mt-2 leading-relaxed">
+            Sim! O CTRL-Farm possui arquitetura local-first. Todo o seu estoque, impressoras, ordens de serviço e câmeras funcionam normalmente mesmo sem nenhuma conexão à internet.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FINAL CTA ================= -->
+  <section class="py-20 relative overflow-hidden bg-gradient-to-b from-[#0a0f1b] via-[#0e1726] to-[#0a0f1b]">
+    <div class="max-w-4xl mx-auto px-4 text-center">
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-white">
+        Pronto para profissionalizar a gestão da sua fazenda 3D?
+      </h2>
+      <p class="text-slate-300 text-sm mt-3 max-w-xl mx-auto">
+        Baixe o instalador de 1 clique e experimente todos os recursos operacionais do CTRL-Farm agora mesmo.
+      </p>
+      <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-neon px-8 py-4 text-sm font-extrabold text-slate-950 hover:bg-brand-neonHover transition shadow-xl shadow-emerald-500/20 active:scale-95">
+          <span>Baixar CTRL-Farm-Setup.exe (Oficial)</span>
+          <span>↓</span>
+        </a>
+        <a href="instalacao.html" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-brand-border bg-brand-surface px-8 py-4 text-sm font-bold text-white hover:bg-brand-surfaceHover transition">
+          <span>Ler Manual Passo a Passo</span>
+          <span>📖</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="border-t border-brand-border bg-[#070b14] py-12 text-xs text-slate-400">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+      
+      <div class="flex items-center gap-3">
+        <span class="text-xl">🖨️</span>
+        <div>
+          <span class="font-bold text-white">CTRL-Farm</span> • Industrial 3D Print Management
+          <div class="text-[11px] text-slate-400 mt-0.5">Versão v1.0.0-Beta (Pioneiros)</div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-6">
+        <a href="instalacao.html" class="hover:text-brand-neon transition">Guia de Instalação</a>
+        <a href="https://github.com/saulooliveirati/CTRL-Farm/releases" target="_blank" class="hover:text-brand-neon transition">GitHub Releases</a>
+        <a href="https://github.com/saulooliveirati/CTRL-Farm" target="_blank" class="hover:text-brand-neon transition">Repositório GitHub</a>
+      </div>
+
+      <div>
+        <span>Desenvolvido para operações de alta escala • 2026</span>
+      </div>
+
+    </div>
+  </footer>
+
+</body>
+</html>
