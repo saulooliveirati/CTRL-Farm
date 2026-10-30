@@ -1,5 +1,8 @@
 # Guia de Instalação e Ativação do CTRL-Farm 🖨️
 
+> 🌐 **Website Oficial & Manual Interativo Online:** [https://saulooliveirati.github.io/CTRL-Farm/](https://saulooliveirati.github.io/CTRL-Farm/)  
+> 📥 **Página Direta de Download & Instruções:** [https://saulooliveirati.github.io/CTRL-Farm/instalacao.html](https://saulooliveirati.github.io/CTRL-Farm/instalacao.html)
+
 Bem-vindo ao **CTRL-Farm**, a plataforma industrial de gestão e monitoramento para fazendas e oficinas de impressão 3D!
 
 Este guia foi elaborado para que você instale e ative o sistema em seu computador com Windows de forma rápida, simples e com zero complicação.
