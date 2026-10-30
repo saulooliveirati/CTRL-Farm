@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, Global } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
@@ -11,6 +11,7 @@ import { JwtStrategy } from "./strategies/jwt.strategy.js";
 import { RegisterService } from "./services/register.service.js";
 import { TwoFactorService } from "./services/two-factor.service.js";
 
+@Global()
 @Module({
   imports: [
     ConfigModule,
@@ -28,6 +29,6 @@ import { TwoFactorService } from "./services/two-factor.service.js";
   ],
   controllers: [AuthController],
   providers: [AuthService, RegisterService, TwoFactorService, JwtAuthGuard, OptionalJwtAuthGuard, JwtStrategy],
-  exports: [AuthService, TwoFactorService, JwtModule, JwtAuthGuard, OptionalJwtAuthGuard],
+  exports: [AuthService, RegisterService, TwoFactorService, JwtModule, JwtAuthGuard, OptionalJwtAuthGuard, PassportModule, JwtStrategy],
 })
 export class AuthModule {}

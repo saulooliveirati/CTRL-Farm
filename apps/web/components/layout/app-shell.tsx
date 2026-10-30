@@ -9,6 +9,7 @@ import { PlanFeatureGate } from "./plan-feature-gate";
 import { GlobalActivationModal } from "./global-activation-modal";
 import { SuspendedSubscriptionModal } from "./suspended-subscription-modal";
 import { FloatingAiAssistant } from "@/components/ai-farm/floating-ai-assistant";
+import { SupportWidget } from "@/components/support/support-widget";
 
 interface AppShellProps {
   children: ReactNode;
@@ -52,6 +53,9 @@ function InnerAppShell({ children, user }: { children: ReactNode; user: PublicUs
 
       {/* Assistente de IA Flutuante exibido apenas se permitido pelo plano */}
       {canShowAiAssistant && <FloatingAiAssistant user={user} />}
+
+      {/* Widget Flutuante de Suporte Técnico Inteligente & Humano */}
+      <SupportWidget user={user} />
 
       {/* Modal Global de Ativação de Chave */}
       <GlobalActivationModal />

@@ -14,6 +14,7 @@ import { CurrentUser } from "../auth/decorators/current-user.decorator.js";
 import type { AuthenticatedUser } from "../auth/interfaces/authenticated-user.interface.js";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard.js";
 import { OptionalJwtAuthGuard } from "../auth/guards/optional-jwt-auth.guard.js";
+import { SubscriptionGuard, RequireFeature } from "./subscription.guard.js";
 
 export class ActivateKeyDto {
   @ApiProperty({ example: "CTRL-FARM-9923-B85E-04F5", description: "Chave RSA oficial de ativação" })
@@ -124,6 +125,20 @@ export class LicensingController {
       dto.autoUpdate,
       dto.updateChannel,
     );
+  }
+
+  @Get("protected-feature")
+  @UseGuards(JwtAuthGuard, SubscriptionGuard)
+  @RequireFeature("production")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Endpoint de teste protegido pelo SubscriptionGuard" })
+  testProtectedFeature(@Req() req: any) {
+    return {
+      success: true,
+      message: "Acesso autorizado ao módulo de produção!",
+      companyId: req.user?.companyId,
+      user: req.user?.email,
+    };
   }
 
   @Get("updates")

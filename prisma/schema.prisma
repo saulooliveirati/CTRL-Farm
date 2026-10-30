@@ -86,6 +86,7 @@ model Company {
   userLicenses       UserLicense[]
   consignmentLocations ConsignmentLocation[]
   consignments       Consignment[]
+  supportTickets     SupportTicket[]
 }
 
 enum CameraQuality {
@@ -131,6 +132,7 @@ model User {
 
   company Company @relation(fields: [companyId], references: [id])
   license UserLicense?
+  supportTickets SupportTicket[]
 }
 
 model Supplier {
@@ -908,4 +910,89 @@ model ConsignmentCommission {
   @@index([companyId, locationId])
   @@index([companyId, status])
   @@index([companyId, deletedAt])
+}
+
+// ==========================================
+// MÓDULO: SUPORTE INTELIGENTE HÍBRIDO (IA + HUMANO) & ACESSO REMOTO
+// ==========================================
+
+enum TicketStatus {
+  BOT_ACTIVE
+  WAITING_HUMAN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum MessageSenderType {
+  USER
+  AI_BOT
+  ADMIN
+}
+
+enum SupportMessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  REMOTE_INVITE
+  SYSTEM
+}
+
+enum RemoteSessionStatus {
+  REQUESTED
+  AUTHORIZED
+  REJECTED
+  ACTIVE
+  ENDED
+}
+
+model SupportTicket {
+  id         String       @id @default(uuid())
+  companyId  String
+  userId     String
+  protocol   String       @unique
+  status     TicketStatus @default(BOT_ACTIVE)
+  subject    String
+  aiSummary  String?      @db.Text
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  closedAt   DateTime?
+
+  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages       SupportMessage[]
+  remoteSessions RemoteSession[]
+
+  @@index([companyId, status])
+  @@index([userId])
+  @@index([protocol])
+}
+
+model SupportMessage {
+  id          String             @id @default(uuid())
+  ticketId    String
+  senderType  MessageSenderType
+  senderName  String
+  messageType SupportMessageType @default(TEXT)
+  content     String             @db.Text
+  mediaUrl    String?
+  createdAt   DateTime           @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}
+
+model RemoteSession {
+  id           String              @id @default(uuid())
+  ticketId     String
+  status       RemoteSessionStatus @default(REQUESTED)
+  requestedAt  DateTime            @default(now())
+  authorizedAt DateTime?
+  expiresAt    DateTime?
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, status])
 }

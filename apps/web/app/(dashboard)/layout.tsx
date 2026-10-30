@@ -12,7 +12,8 @@ export default async function DashboardLayout({
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect("/login");
+    // Visitante não autenticado: permite visualização da Landing Page pública
+    return <>{children}</>;
   }
 
   const licensingStatus = await getLicensingStatus();

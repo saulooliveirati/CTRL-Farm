@@ -15,31 +15,48 @@ Este guia foi elaborado para que você instale e ative o sistema em seu computad
 
 ## 💻 Requisitos do Sistema
 
+### Para Windows:
 - **Sistema Operacional:** Windows 10 ou Windows 11 (64-bit)
 - **Memória RAM:** Mínimo de 4 GB RAM (recomendado 8 GB)
 - **Espaço em Disco:** 500 MB livres
-- **Navegador:** Microsoft Edge ou Google Chrome (utilizado pelo motor nativo de visualização)
-- **Não requer Docker nem configuração manual de banco de dados:** Todos os serviços essenciais (PostgreSQL local leve e runtime) já operam de forma integrada e autocontida.
+- **Navegador:** Microsoft Edge ou Google Chrome (motor Chromium de visualização em janela)
+
+### Para macOS:
+- **Sistema Operacional:** macOS 11 (Big Sur) ou superior (Ventura, Sonoma, Sequoia)
+- **Processador:** Apple Silicon (M1, M2, M3, M4) ou Intel x86_64 (Universal)
+- **Memória RAM:** Mínimo de 4 GB RAM (recomendado 8 GB)
+- **Espaço em Disco:** 500 MB livres
+
+*Não requer Docker nem configuração manual de banco de dados em nenhuma das plataformas.*
 
 ---
 
-## 🚀 Passo a Passo de Instalação (1 Clique)
+## 🚀 Download dos Instaladores Oficiais
 
-### Passo 1 — Download do Instalador
-Baixe o arquivo de instalação único e oficial diretamente pelo link do GitHub Releases:
+Escolha o instalador correspondente ao seu sistema operacional:
 
-🔗 **[Baixar CTRL-Farm-Setup.exe (Link Direto)](https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe)**
+- 🪟 **[Baixar para Windows (CTRL-Farm-Setup.exe)](https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe)** — Instalador autocontido de 1 clique.
+- 🍏 **[Baixar para macOS (CTRL-Farm.dmg)](https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm.dmg)** — Imagem de disco universal Apple (Apple Silicon & Intel).
 
 ---
 
-### Passo 2 — Instalação com 1 Clique
-1. Abra o arquivo baixado **`CTRL-Farm-Setup.exe`**.
-2. **Aviso do Windows SmartScreen (Desenvolvedor Independente):**
-   - Como se trata de um binário de teste inicial (Beta), o Windows pode exibir a tela azul *"O Windows protegeu o seu computador"*.
-   - Clique no texto **"Mais informações"**.
-   - Em seguida, clique no botão **"Executar assim mesmo"**.
-3. O instalador do CTRL-Farm será aberto. Clique em **"Avançar"** e depois em **"Instalar"**.
-4. O processo é rápido (< 1 minuto) e criará automaticamente o atalho **CTRL-Farm** na sua Área de Trabalho e no Menu Iniciar.
+## 🛠️ Passo a Passo de Instalação
+
+### Instalação no Windows (.exe):
+1. Baixe o arquivo **`CTRL-Farm-Setup.exe`**.
+2. Dê um duplo clique no arquivo baixado na sua pasta de Downloads.
+3. Se o Windows SmartScreen exibir aviso de aplicativo recente:
+   - Clique em **"Mais informações"**.
+   - Em seguida, clique em **"Executar assim mesmo"**.
+4. O instalador cria automaticamente os atalhos na Área de Trabalho e no Menu Iniciar.
+5. O aplicativo inicializa em janela nativa e conecta à fazenda.
+
+### Instalação no macOS (.dmg):
+1. Baixe o arquivo **`CTRL-Farm.dmg`**.
+2. Dê um duplo clique na imagem de disco baixada para montá-la no Finder.
+3. Arraste o ícone **CTRL-Farm** para a pasta **Applications** (Aplicativos).
+4. Abra o **CTRL-Farm** pelo Launchpad ou Spotlight.
+5. No primeiro acesso, se o Gatekeeper da Apple alertar sobre desenvolvedor identificado, basta ir em *Ajustes do Sistema > Privacidade e Segurança* e clicar em **"Abrir Mesmo Assim"**.
 
 ---
 

@@ -18,6 +18,7 @@ import { MarketplaceModule } from "./marketplace/marketplace.module.js";
 import { FirebaseModule } from "./firebase/firebase.module.js";
 import { ConsignmentsModule } from "./consignments/consignments.module.js";
 import { BackupModule } from "./backup/backup.module.js";
+import { SupportModule } from "./support/support.module.js";
 import { OrdersModule } from "./orders/orders.module.js";
 import { PricingModule } from "./pricing/pricing.module.js";
 import { PrintersModule } from "./printers/printers.module.js";
@@ -33,7 +34,7 @@ import { UsersModule } from "./users/users.module.js";
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: "../../.env",
+      envFilePath: [".env", "../.env", "../../.env"],
       validate: validateEnvironment,
     }),
 
@@ -64,6 +65,7 @@ import { UsersModule } from "./users/users.module.js";
     FirebaseModule,
     ConsignmentsModule,
     BackupModule,
+    SupportModule,
   ],
 })
 export class AppModule {}

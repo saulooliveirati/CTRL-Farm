@@ -8,6 +8,7 @@ import { LgpdPrivacyTab } from "./lgpd-privacy-tab";
 import { LicensingTab } from "./licensing-tab";
 import { FirebaseCloudTab } from "./firebase-cloud-tab";
 import { BackupRestoreTab } from "./backup-restore-tab";
+import { SupportTab } from "./support-tab";
 import { useLicensing } from "@/contexts/licensing-context";
 
 export type RoleType = "ADMIN" | "MANAGER" | "OPERATOR" | "VIEWER";
@@ -321,15 +322,15 @@ export function SettingsManager({
 }) {
   const [users, setUsers] = useState<CompanyUserRecord[]>(initialUsers);
   const [activeTab, setActiveTab] = useState<
-    "company" | "users" | "matrix" | "system" | "lgpd" | "licensing" | "firebase" | "backup"
+    "company" | "users" | "matrix" | "system" | "lgpd" | "licensing" | "firebase" | "backup" | "support"
   >(
     defaultTab &&
-      ["company", "users", "matrix", "system", "lgpd", "licensing", "firebase", "backup"].includes(defaultTab)
+      ["company", "users", "matrix", "system", "lgpd", "licensing", "firebase", "backup", "support"].includes(defaultTab)
       ? (defaultTab as any)
       : "company"
   );
 
-  const selectTab = (tab: "company" | "users" | "matrix" | "system" | "lgpd" | "licensing" | "firebase" | "backup") => {
+  const selectTab = (tab: "company" | "users" | "matrix" | "system" | "lgpd" | "licensing" | "firebase" | "backup" | "support") => {
     setActiveTab(tab);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
@@ -342,7 +343,7 @@ export function SettingsManager({
   useEffect(() => {
     if (
       defaultTab &&
-      ["company", "users", "matrix", "system", "lgpd", "licensing", "firebase", "backup"].includes(defaultTab)
+      ["company", "users", "matrix", "system", "lgpd", "licensing", "firebase", "backup", "support"].includes(defaultTab)
     ) {
       setActiveTab(defaultTab as any);
     }
@@ -790,6 +791,7 @@ export function SettingsManager({
           { key: "licensing", label: "Assinatura & Updates", icon: "🔑" },
           { key: "firebase", label: "Nuvem & Firebase", icon: "☁️" },
           { key: "backup", label: "Backup do Serviço", icon: "💾" },
+          { key: "support", label: "Suporte e Ajuda", icon: "💬" },
         ].map((t) => {
           const isActive = activeTab === t.key;
           return (
@@ -1742,6 +1744,11 @@ export function SettingsManager({
       {/* ================= ABA 8: BACKUP COMPLETO DO SERVIÇO ================= */}
       {activeTab === "backup" && (
         <BackupRestoreTab currentUser={currentUser} company={initialCompany} />
+      )}
+
+      {/* ================= ABA 9: SUPORTE TÉCNICO INTELIGENTE & HUMANO ================= */}
+      {activeTab === "support" && (
+        <SupportTab currentUser={currentUser} />
       )}
 
       {/* ================= MODAL: CRIAR NOVO USUÁRIO ================= */}

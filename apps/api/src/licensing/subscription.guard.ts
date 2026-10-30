@@ -32,6 +32,10 @@ export class SubscriptionGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user as AuthenticatedUser | undefined;
 
+    if (!user || !user.companyId) {
+      throw new ForbiddenException("Acesso negado: Empresa ou usuário não autenticado.");
+    }
+
     const hasAccess = await this.licensingService.checkFeatureAccess(user, requiredFeature);
 
     if (!hasAccess) {

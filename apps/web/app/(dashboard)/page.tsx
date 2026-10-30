@@ -5,16 +5,22 @@ import { getFilamentsForPage } from "@/lib/server-filaments";
 import { getProductionForPage } from "@/lib/server-production";
 import { getOrdersForPage } from "@/lib/server-orders";
 import { getCamerasForPage } from "@/lib/server-cameras";
+import { LandingPage } from "@/components/landing/landing-page";
 
 export default async function DashboardPage() {
-  const [printerData, filamentData, productionData, orderData, cameraData, user] =
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return <LandingPage />;
+  }
+
+  const [printerData, filamentData, productionData, orderData, cameraData] =
     await Promise.all([
       getPrintersForPage(),
       getFilamentsForPage(),
       getProductionForPage(),
       getOrdersForPage(),
       getCamerasForPage().catch(() => ({ cameras: [], error: "" })),
-      getCurrentUser(),
     ]);
 
   return (
@@ -24,8 +30,8 @@ export default async function DashboardPage() {
       jobs={productionData.jobs ?? []}
       orders={orderData.orders ?? []}
       cameras={cameraData.cameras ?? []}
-      userId={user?.id ?? "default"}
-      isAdmin={user?.role === "ADMIN"}
+      userId={user.id}
+      isAdmin={user.role === "ADMIN"}
     />
   );
 }

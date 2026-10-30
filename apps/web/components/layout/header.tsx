@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Key, ShieldAlert } from "lucide-react";
+import { Key, ShieldAlert, Smartphone } from "lucide-react";
 import type { PublicUser } from "@/lib/auth-types";
 import { useLicensing } from "@/contexts/licensing-context";
 import { LogoutButton } from "./logout-button";
@@ -98,6 +98,20 @@ export function Header({
             <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
             <span>Ativar Chave</span>
           </button>
+        )}
+
+        {/* Atalho Mobile Manager (exclusivo para Gestores e Admins) */}
+        {(user.role === "ADMIN" || user.role === "MANAGER") && (
+          <Link
+            href="/mobile"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-indigo-500/30 bg-indigo-950/40 text-indigo-300 hover:border-indigo-400 hover:bg-indigo-900/50 transition text-xs font-semibold shadow-sm"
+            title="Abrir CTRL Farm Manager Mobile (Otimizado para iPhone / PWA)"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="hidden sm:inline">Mobile</span>
+          </Link>
         )}
 
         <Link

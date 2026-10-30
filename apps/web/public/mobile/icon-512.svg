@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141c2b" />
+      <stop offset="50%" stop-color="#0a0f18" />
+      <stop offset="100%" stop-color="#05080e" />
+    </linearGradient>
+    <linearGradient id="neon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2fe4ad" />
+      <stop offset="100%" stop-color="#20c997" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- iOS Squircle Background -->
+  <rect width="512" height="512" rx="115" fill="url(#bg)" />
+  <rect width="504" height="504" x="4" y="4" rx="111" fill="none" stroke="rgba(255, 255, 255, 0.08)" stroke-width="8" />
+
+  <!-- Neon Core Halo -->
+  <circle cx="256" cy="240" r="140" fill="url(#neon)" opacity="0.12" filter="url(#glow)" />
+
+  <!-- Printer Gantry Frame -->
+  <path d="M140 160 L372 160 L372 350 L340 350 L340 192 L172 192 L172 350 L140 350 Z" fill="#ffffff" opacity="0.9" />
+
+  <!-- X-Axis Rail & Print Head -->
+  <rect x="156" y="240" width="200" height="14" rx="4" fill="rgba(255, 255, 255, 0.4)" />
+  <rect x="236" y="222" width="40" height="46" rx="8" fill="url(#neon)" filter="url(#glow)" />
+  
+  <!-- Extruder Nozzle -->
+  <polygon points="251,268 261,268 256,278" fill="#ffffff" />
+  
+  <!-- Heated Bed Plate -->
+  <rect x="160" y="340" width="192" height="16" rx="6" fill="#334155" />
+  <rect x="190" y="328" width="132" height="12" rx="4" fill="url(#neon)" opacity="0.8" />
+
+  <!-- Text / Badge -->
+  <text x="256" y="420" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif" font-size="34" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="2">
+    CTRL<tspan fill="#20c997"> FARM</tspan>
+  </text>
+  <text x="256" y="448" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif" font-size="16" font-weight="600" fill="#94a3b8" text-anchor="middle" letter-spacing="4">
+    MANAGER MOBILE
+  </text>
+</svg>
