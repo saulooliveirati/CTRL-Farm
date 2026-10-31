@@ -1,24 +1,23 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# CTRL-Farm Desktop - Supervisor Nativo para macOS (Apple Silicon & Intel)
+# CTRL-Farm Desktop - Supervisor Nativo Silencioso para macOS (Apple Silicon & Intel)
 # ==============================================================================
-
-set -e
 
 # Resolve o diretório raiz do aplicativo dentro do bundle .app
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_ROOT="$(cd "$DIR/../../.." && pwd)"
 
-# Arquivo de Lock e Logs
+# Configuração de Logs Ocultos em ~/Library/Logs/CTRL-Farm/
 LOCKFILE="/tmp/ctrl-farm-mac.lock"
 LOG_DIR="$HOME/Library/Logs/CTRL-Farm"
 mkdir -p "$LOG_DIR"
 MAIN_LOG="$LOG_DIR/ctrl-farm-supervisor.log"
 
-exec > >(tee -a "$MAIN_LOG") 2>&1
+# Redireciona toda a saída para o log de forma 100% silenciosa sem abrir terminais
+exec >> "$MAIN_LOG" 2>&1
 
 echo "=============================================================================="
-echo "🚀 Iniciando CTRL-Farm Industrial Platform no macOS..."
+echo "🚀 Iniciando CTRL-Farm Industrial Platform no macOS (Modo Silencioso)..."
 echo "📅 Data: $(date)"
 echo "📍 Diretório App: $APP_ROOT"
 echo "=============================================================================="
@@ -31,13 +30,13 @@ if [ -f "$LOCKFILE" ]; then
   if [ -n "$EXISTING_PID" ] && kill -0 "$EXISTING_PID" 2>/dev/null; then
     echo "⚠️  O CTRL-Farm já está em execução (PID: $EXISTING_PID). Focando janela existente..."
     if [ -d "/Applications/Google Chrome.app" ]; then
-      open -a "Google Chrome" "http://localhost:3000"
+      open -a "Google Chrome" "http://localhost:3000" >/dev/null 2>&1 || true
     elif [ -d "/Applications/Microsoft Edge.app" ]; then
-      open -a "Microsoft Edge" "http://localhost:3000"
+      open -a "Microsoft Edge" "http://localhost:3000" >/dev/null 2>&1 || true
     elif [ -d "/Applications/Brave Browser.app" ]; then
-      open -a "Brave Browser" "http://localhost:3000"
+      open -a "Brave Browser" "http://localhost:3000" >/dev/null 2>&1 || true
     else
-      open "http://localhost:3000"
+      open "http://localhost:3000" >/dev/null 2>&1 || true
     fi
     exit 0
   fi
@@ -60,13 +59,13 @@ cleanup() {
     fi
   done
 
-  # Encerra processos node locais residuais do bundle
+  # Encerra processos residuais vinculados ao bundle
   pkill -f "apps/api/dist/main.js" 2>/dev/null || true
   pkill -f "mediamtx-darwin" 2>/dev/null || true
 
   # Remove arquivo de lock
   rm -f "$LOCKFILE"
-  echo "✓ Todos os serviços encerrados com segurança. Até logo!"
+  echo "✓ Todos os serviços encerrados com segurança."
 }
 
 trap cleanup SIGINT SIGTERM SIGHUP EXIT
@@ -96,7 +95,7 @@ if [ -z "$MEDIAMTX_BIN" ] && [ -f "$APP_ROOT/bin/mediamtx/mediamtx" ]; then
 fi
 
 # Localiza runtime do Node.js
-NODE_BIN="$(command -v node || true)"
+NODE_BIN="$(command -v node 2>/dev/null || true)"
 if [ -z "$NODE_BIN" ]; then
   for candidate in \
     "$APP_ROOT/bin/node" \
@@ -112,11 +111,11 @@ if [ -z "$NODE_BIN" ]; then
 fi
 
 if [ -z "$NODE_BIN" ]; then
-  osascript -e 'display alert "Node.js Não Encontrado" message "O CTRL-Farm requer Node.js v18+ instalado no seu Mac. Baixe gratuitamente em https://nodejs.org" as critical'
+  osascript -e 'display alert "Node.js Não Encontrado" message "O CTRL-Farm requer o Node.js instalado no seu Mac. Baixe gratuitamente em https://nodejs.org" as critical' >/dev/null 2>&1 || true
   exit 1
 fi
 
-echo "🟢 Node.js localizado em: $NODE_BIN ($($NODE_BIN -v))"
+echo "🟢 Node.js localizado em: $NODE_BIN ($($NODE_BIN -v 2>/dev/null || echo 'OK'))"
 
 # ------------------------------------------------------------------------------
 # 4. INICIALIZAÇÃO DO SERVIDOR DE TRANSMISSÃO DE CÂMERAS (MediaMTX)
@@ -142,14 +141,13 @@ API_PID=$!
 PIDS_TO_KILL+=($API_PID)
 
 # Aguarda inicialização da API
-echo -n "⏳ Aguardando inicialização da API..."
-for i in {1..30}; do
-  if curl -s "http://localhost:3001/docs" >/dev/null 2>&1 || curl -s "http://localhost:3001" >/dev/null 2>&1; then
-    echo " Online!"
+echo "⏳ Aguardando disponibilidade da porta 3001..."
+for i in {1..35}; do
+  if curl -s "http://localhost:3001" >/dev/null 2>&1 || curl -s "http://localhost:3001/docs" >/dev/null 2>&1; then
+    echo "🟢 API Online!"
     break
   fi
   sleep 1
-  echo -n "."
 done
 
 # ------------------------------------------------------------------------------
@@ -160,39 +158,42 @@ cd "$APP_ROOT/apps/web"
 export PORT=3000
 export NODE_ENV=production
 
-"$NODE_BIN" node_modules/.bin/next start -p 3000 > "$LOG_DIR/web.log" 2>&1 &
+NEXT_BIN="$APP_ROOT/node_modules/next/dist/bin/next"
+if [ -f "$NEXT_BIN" ]; then
+  "$NODE_BIN" "$NEXT_BIN" start -p 3000 > "$LOG_DIR/web.log" 2>&1 &
+else
+  "$NODE_BIN" node_modules/.bin/next start -p 3000 > "$LOG_DIR/web.log" 2>&1 &
+fi
 WEB_PID=$!
 PIDS_TO_KILL+=($WEB_PID)
 
-# Aguarda disponibilidade da porta 3000
-echo -n "⏳ Aguardando carregamento da interface web..."
+# Aguarda disponibilidade da interface web
+echo "⏳ Aguardando carregamento da interface web na porta 3000..."
 for i in {1..40}; do
   if curl -s "http://localhost:3000" >/dev/null 2>&1; then
-    echo " Pronta!"
+    echo "🟢 Interface Web Pronta!"
     break
   fi
   sleep 1
-  echo -n "."
 done
 
 # ------------------------------------------------------------------------------
-# 7. ABERTURA EM MODO JANELA NATIVA (Chromium App Mode)
+# 7. ABERTURA EM MODO JANELA NATIVA (Chromium App Mode / WebKit)
 # ------------------------------------------------------------------------------
-echo "🪟 Abrindo janela nativa do CTRL-Farm..."
+echo "🪟 Abrindo janela de aplicativo nativo do CTRL-Farm..."
 
 if [ -d "/Applications/Google Chrome.app" ]; then
-  open -na "Google Chrome" --args --app="http://localhost:3000" --window-size=1440,900
+  open -na "Google Chrome" --args --app="http://localhost:3000" --window-size=1440,900 >/dev/null 2>&1
 elif [ -d "/Applications/Microsoft Edge.app" ]; then
-  open -na "Microsoft Edge" --args --app="http://localhost:3000" --window-size=1440,900
+  open -na "Microsoft Edge" --args --app="http://localhost:3000" --window-size=1440,900 >/dev/null 2>&1
 elif [ -d "/Applications/Brave Browser.app" ]; then
-  open -na "Brave Browser" --args --app="http://localhost:3000" --window-size=1440,900
-elif [ -d "/Applications/Arc.app" ]; then
-  open -na "Arc" --args "http://localhost:3000"
+  open -na "Brave Browser" --args --app="http://localhost:3000" --window-size=1440,900 >/dev/null 2>&1
 else
-  open "http://localhost:3000"
+  # Fallback: navegador padrão do Mac
+  open "http://localhost:3000" >/dev/null 2>&1
 fi
 
-echo "✅ CTRL-Farm em execução com sucesso!"
+echo "✅ CTRL-Farm em execução silenciosa com sucesso!"
 echo "📝 Logs detalhados disponíveis em: $LOG_DIR"
 
 # Mantém o processo principal vivo aguardando encerramento

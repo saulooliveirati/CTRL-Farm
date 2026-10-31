@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -18,6 +20,16 @@ namespace CtrlFarm.Desktop
         private const int ApiPort = 3001;
         private const int WebPort = 3000;
         private const int DbPort = 5432;
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        private const int SW_RESTORE = 9;
+        private const int SW_MINIMIZE = 6;
+        private const int SW_SHOW = 5;
 
         private static Mutex appMutex;
         private static NotifyIcon trayIcon;
@@ -68,17 +80,20 @@ namespace CtrlFarm.Desktop
                 catch (Exception ex)
                 {
                     Log("Erro fatal na inicialização: " + ex.Message + "\n" + ex.StackTrace);
-                    splashForm.Invoke((Action)(() =>
+                    if (splashForm != null && !splashForm.IsDisposed)
                     {
-                        splashForm.SetStatus("Erro ao iniciar: " + ex.Message);
-                        MessageBox.Show(
-                            "Ocorreu um erro ao inicializar os serviços do CTRL-Farm:\n\n" + ex.Message +
-                            "\n\nConsulte os logs em: " + logsDir,
-                            AppTitle,
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Error);
-                        ExitApplication();
-                    }));
+                        splashForm.Invoke((Action)(() =>
+                        {
+                            splashForm.SetStatus("Erro ao iniciar: " + ex.Message);
+                            MessageBox.Show(
+                                "Ocorreu um erro ao inicializar os serviços do CTRL-Farm:\n\n" + ex.Message +
+                                "\n\nConsulte os logs em: " + logsDir,
+                                AppTitle,
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Error);
+                            ExitApplication();
+                        }));
+                    }
                 }
             });
 
@@ -137,31 +152,34 @@ namespace CtrlFarm.Desktop
 
         private static void StartServicesWorkflow()
         {
-            UpdateSplash("Verificando ambiente e banco de dados...", 15);
+            UpdateSplash("Verificando ambiente e banco de dados local...", 15);
             CheckDatabaseService();
 
-            UpdateSplash("Iniciando MediaMTX (Serviço de Câmeras)...", 30);
+            UpdateSplash("Iniciando MediaMTX (Streaming & Câmeras RTSP/WebRTC)...", 35);
             StartMediaMtxService();
 
-            UpdateSplash("Iniciando API NestJS do CTRL-Farm (Porta 3001)...", 50);
+            UpdateSplash("Iniciando API NestJS do CTRL-Farm (Porta 3001)...", 60);
             StartApiProcess();
 
-            UpdateSplash("Iniciando Interface Web Next.js (Porta 3000)...", 75);
+            UpdateSplash("Iniciando Interface Web Next.js (Porta 3000)...", 80);
             StartWebProcess();
 
-            UpdateSplash("Aguardando inicialização dos servidores locais...", 90);
+            UpdateSplash("Validando disponibilidade das portas locais 3001 e 3000...", 92);
             WaitForPort(ApiPort, 35000);
             WaitForPort(WebPort, 35000);
 
             UpdateSplash("CTRL-Farm pronto! Abrindo janela principal...", 100);
             Thread.Sleep(800);
 
-            splashForm.Invoke((Action)(() =>
+            if (splashForm != null && !splashForm.IsDisposed)
             {
-                splashForm.Hide();
-                SetupTrayIcon();
-                LaunchAppWindow();
-            }));
+                splashForm.Invoke((Action)(() =>
+                {
+                    splashForm.Hide();
+                    SetupTrayIcon();
+                    LaunchAppWindow();
+                }));
+            }
         }
 
         private static void UpdateSplash(string text, int progress)
@@ -174,7 +192,7 @@ namespace CtrlFarm.Desktop
 
         private static void CheckDatabaseService()
         {
-            // 1. Fallback imediato: Se a porta 5432 já estiver ativa (serviço local pré-instalado)
+            // 1. Se a porta 5432 já estiver ativa (serviço local pré-instalado)
             if (IsPortOpen(DbPort, 1200))
             {
                 Log("PostgreSQL detectado ativo na porta 5432 (instância existente/serviço local).");
@@ -183,7 +201,6 @@ namespace CtrlFarm.Desktop
 
             Log("Porta 5432 fechada. Buscando binários do PostgreSQL Portátil (baixo consumo < 50MB RAM)...");
 
-            // 2. Procurar pg_ctl.exe no pacote do app
             string[] candidatePgCtl = new string[]
             {
                 Path.Combine(appRootDir, "bin", "pgsql", "bin", "pg_ctl.exe"),
@@ -224,7 +241,8 @@ namespace CtrlFarm.Desktop
                             ProcessStartInfo initPsi = new ProcessStartInfo(initDbExe, string.Format("-D \"{0}\" -U postgres -E UTF8 --no-locale -A trust", portablePgDataDir))
                             {
                                 CreateNoWindow = true,
-                                UseShellExecute = false
+                                UseShellExecute = false,
+                                WindowStyle = ProcessWindowStyle.Hidden
                             };
                             Process initProc = Process.Start(initPsi);
                             initProc.WaitForExit(15000);
@@ -236,7 +254,8 @@ namespace CtrlFarm.Desktop
                     {
                         WorkingDirectory = Path.GetDirectoryName(foundPgCtl),
                         CreateNoWindow = true,
-                        UseShellExecute = false
+                        UseShellExecute = false,
+                        WindowStyle = ProcessWindowStyle.Hidden
                     };
                     postgresProcess = Process.Start(startPsi);
                     postgresProcess.WaitForExit(6000);
@@ -286,7 +305,8 @@ namespace CtrlFarm.Desktop
                 {
                     WorkingDirectory = Path.GetDirectoryName(mediamtxExe),
                     CreateNoWindow = true,
-                    UseShellExecute = false
+                    UseShellExecute = false,
+                    WindowStyle = ProcessWindowStyle.Hidden
                 };
                 mediamtxProcess = Process.Start(psi);
                 Log("MediaMTX iniciado com PID: " + mediamtxProcess.Id);
@@ -321,6 +341,7 @@ namespace CtrlFarm.Desktop
                 WorkingDirectory = apiDir,
                 CreateNoWindow = true,
                 UseShellExecute = false,
+                WindowStyle = ProcessWindowStyle.Hidden,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
@@ -334,7 +355,7 @@ namespace CtrlFarm.Desktop
             apiProcess.Start();
             apiProcess.BeginOutputReadLine();
             apiProcess.BeginErrorReadLine();
-            Log("Processo da API iniciado com PID: " + apiProcess.Id);
+            Log("Processo da API iniciado silenciosamente com PID: " + apiProcess.Id);
         }
 
         private static void StartWebProcess()
@@ -367,6 +388,7 @@ namespace CtrlFarm.Desktop
                 WorkingDirectory = webDir,
                 CreateNoWindow = true,
                 UseShellExecute = false,
+                WindowStyle = ProcessWindowStyle.Hidden,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
@@ -380,7 +402,7 @@ namespace CtrlFarm.Desktop
             webProcess.Start();
             webProcess.BeginOutputReadLine();
             webProcess.BeginErrorReadLine();
-            Log("Processo Web iniciado com PID: " + webProcess.Id);
+            Log("Processo Web iniciado silenciosamente com PID: " + webProcess.Id);
         }
 
         private static string FindNodeExecutable()
@@ -443,8 +465,16 @@ namespace CtrlFarm.Desktop
             }
         }
 
-        private static void LaunchAppWindow()
+        public static void LaunchAppWindow()
         {
+            // Se o processo do browser já existir e a janela estiver aberta, restaura e foca
+            if (browserProcess != null && !browserProcess.HasExited && browserProcess.MainWindowHandle != IntPtr.Zero)
+            {
+                ShowWindow(browserProcess.MainWindowHandle, SW_RESTORE);
+                SetForegroundWindow(browserProcess.MainWindowHandle);
+                return;
+            }
+
             string url = string.Format("http://localhost:{0}", WebPort);
             string profileDir = Path.Combine(dataDir, "WebProfile");
 
@@ -458,9 +488,14 @@ namespace CtrlFarm.Desktop
 
                 try
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo(browserPath, args);
+                    ProcessStartInfo psi = new ProcessStartInfo(browserPath, args)
+                    {
+                        UseShellExecute = false,
+                        CreateNoWindow = false,
+                        WindowStyle = ProcessWindowStyle.Normal
+                    };
                     browserProcess = Process.Start(psi);
-                    Log("Janela do aplicativo aberta com: " + browserPath);
+                    Log("Janela nativa do aplicativo aberta em Chromium App Mode com: " + browserPath);
                     return;
                 }
                 catch (Exception ex)
@@ -469,8 +504,23 @@ namespace CtrlFarm.Desktop
                 }
             }
 
-            // Fallback: abre no navegador padrão
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            // Fallback: abre no navegador padrão do sistema
+            try
+            {
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                Log("Erro ao acionar navegador padrão: " + ex.Message);
+            }
+        }
+
+        public static void MinimizeAppWindow()
+        {
+            if (browserProcess != null && !browserProcess.HasExited && browserProcess.MainWindowHandle != IntPtr.Zero)
+            {
+                ShowWindow(browserProcess.MainWindowHandle, SW_MINIMIZE);
+            }
         }
 
         private static string FindChromiumBrowser()
@@ -494,20 +544,29 @@ namespace CtrlFarm.Desktop
         private static void SetupTrayIcon()
         {
             trayMenu = new ContextMenuStrip();
+            trayMenu.BackColor = Color.FromArgb(16, 24, 39);
+            trayMenu.ForeColor = Color.FromArgb(248, 250, 252);
+            trayMenu.ShowImageMargin = false;
 
             var titleItem = new ToolStripMenuItem(string.Format("{0} ({1})", AppTitle, AppVersion))
             {
                 Enabled = false,
-                Font = new Font(FontFamily.GenericSansSerif, 8.5f, FontStyle.Bold)
+                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(32, 201, 151)
             };
             trayMenu.Items.Add(titleItem);
             trayMenu.Items.Add(new ToolStripSeparator());
 
-            var openItem = new ToolStripMenuItem("🖥️  Abrir CTRL-Farm", null, (s, e) => LaunchAppWindow());
-            openItem.Font = new Font(FontFamily.GenericSansSerif, 8.5f, FontStyle.Bold);
+            var openItem = new ToolStripMenuItem("🖥️  Abrir / Restaurar CTRL-Farm", null, (s, e) => LaunchAppWindow())
+            {
+                Font = new Font("Segoe UI", 9f, FontStyle.Bold)
+            };
             trayMenu.Items.Add(openItem);
 
-            var restartItem = new ToolStripMenuItem("🔄  Reiniciar Servidores", null, (s, e) => RestartServices());
+            var minimizeItem = new ToolStripMenuItem("🗕  Minimizar Janela", null, (s, e) => MinimizeAppWindow());
+            trayMenu.Items.Add(minimizeItem);
+
+            var restartItem = new ToolStripMenuItem("🔄  Reiniciar Serviços Locais", null, (s, e) => RestartServices());
             trayMenu.Items.Add(restartItem);
 
             var externalItem = new ToolStripMenuItem("🌐  Abrir no Navegador Externo", null, (s, e) =>
@@ -524,12 +583,15 @@ namespace CtrlFarm.Desktop
 
             trayMenu.Items.Add(new ToolStripSeparator());
 
-            var statusItem = new ToolStripMenuItem("ℹ️  Status dos Serviços", null, (s, e) => ShowStatusDialog());
+            var statusItem = new ToolStripMenuItem("ℹ️  Status dos Componentes Locais", null, (s, e) => ShowStatusDialog());
             trayMenu.Items.Add(statusItem);
 
             trayMenu.Items.Add(new ToolStripSeparator());
 
-            var exitItem = new ToolStripMenuItem("❌  Encerrar CTRL-Farm", null, (s, e) => ExitApplication());
+            var exitItem = new ToolStripMenuItem("❌  Encerrar CTRL-Farm", null, (s, e) => ExitApplication())
+            {
+                ForeColor = Color.FromArgb(251, 113, 133)
+            };
             trayMenu.Items.Add(exitItem);
 
             Icon appIcon = LoadAppIcon();
@@ -547,7 +609,7 @@ namespace CtrlFarm.Desktop
             trayIcon.ShowBalloonTip(
                 4000,
                 AppTitle,
-                "CTRL-Farm está ativo e operacional na porta 3000.\nClique duas vezes para abrir.",
+                "CTRL-Farm está ativo e operacional na porta 3000.\nClique duas vezes para abrir a janela nativa.",
                 ToolTipIcon.Info);
         }
 
@@ -570,10 +632,11 @@ namespace CtrlFarm.Desktop
 
             string msg = string.Format(
                 "Status Atual dos Componentes CTRL-Farm:\n\n" +
-                "• Banco de Dados PostgreSQL (5432): {0}\n" +
-                "• API NestJS & Licensing (3001): {1}\n" +
-                "• Interface Web Next.js (3000): {2}\n" +
-                "• Servidor de Câmeras MediaMTX (8890): {3}\n\n" +
+                "• Banco de Dados PostgreSQL (Porta 5432): {0}\n" +
+                "• API NestJS & Conexão Cloud (Porta 3001): {1}\n" +
+                "• Interface Web Next.js (Porta 3000): {2}\n" +
+                "• Servidor de Câmeras MediaMTX (Porta 8890): {3}\n\n" +
+                "Arquitetura: Híbrida Local-First com Conexão em Nuvem\n" +
                 "Pasta de Instalação: {4}\n" +
                 "Pasta de Logs: {5}",
                 db ? "🟢 Conectado" : "🔴 Não acessível",
@@ -603,13 +666,13 @@ namespace CtrlFarm.Desktop
 
             if (trayIcon != null)
             {
-                trayIcon.ShowBalloonTip(3000, AppTitle, "Serviços reiniciados com sucesso!", ToolTipIcon.Info);
+                trayIcon.ShowBalloonTip(3000, AppTitle, "Serviços locais reiniciados com sucesso!", ToolTipIcon.Info);
             }
         }
 
         public static void ExitApplication()
         {
-            Log("Encerrando aplicação e finalizando todos os processos filhos...");
+            Log("Encerrando aplicação e finalizando todos os processos filhos silenciosamente...");
             if (trayIcon != null)
             {
                 trayIcon.Visible = false;
@@ -627,7 +690,8 @@ namespace CtrlFarm.Desktop
                     ProcessStartInfo stopPsi = new ProcessStartInfo(portablePgCtlExe, string.Format("stop -D \"{0}\" -m fast", portablePgDataDir))
                     {
                         CreateNoWindow = true,
-                        UseShellExecute = false
+                        UseShellExecute = false,
+                        WindowStyle = ProcessWindowStyle.Hidden
                     };
                     Process stopProc = Process.Start(stopPsi);
                     stopProc.WaitForExit(4000);
@@ -638,7 +702,7 @@ namespace CtrlFarm.Desktop
 
             if (appMutex != null)
             {
-                appMutex.ReleaseMutex();
+                try { appMutex.ReleaseMutex(); } catch { }
                 appMutex.Dispose();
             }
 
@@ -652,13 +716,15 @@ namespace CtrlFarm.Desktop
             {
                 if (!p.HasExited)
                 {
-                    Process killer = Process.Start(new ProcessStartInfo
+                    ProcessStartInfo psi = new ProcessStartInfo
                     {
                         FileName = "taskkill",
                         Arguments = string.Format("/PID {0} /T /F", p.Id),
                         CreateNoWindow = true,
-                        UseShellExecute = false
-                    });
+                        UseShellExecute = false,
+                        WindowStyle = ProcessWindowStyle.Hidden
+                    };
+                    Process killer = Process.Start(psi);
                     if (killer != null)
                     {
                         killer.WaitForExit(3000);
@@ -675,40 +741,54 @@ namespace CtrlFarm.Desktop
         private Label lblStatus;
         private Label lblTitle;
         private Label lblSubtitle;
+        private Icon appIcon;
 
         public SplashForm()
         {
             this.FormBorderStyle = FormBorderStyle.None;
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new Size(520, 260);
+            this.Size = new Size(540, 280);
             this.BackColor = Color.FromArgb(10, 15, 27); // #0a0f1b Dark Industrial
             this.ShowInTaskbar = true;
             this.TopMost = true;
 
+            this.SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.DoubleBuffer, true);
+
+            // Tenta carregar ícone oficial
+            try
+            {
+                string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.ico");
+                if (File.Exists(iconPath))
+                {
+                    appIcon = new Icon(iconPath);
+                }
+            }
+            catch { }
+
             lblTitle = new Label
             {
                 Text = "CTRL-Farm",
-                Font = new Font("Segoe UI", 22, FontStyle.Bold),
+                Font = new Font("Segoe UI", 24, FontStyle.Bold),
                 ForeColor = Color.FromArgb(32, 201, 151), // #20c997 Emerald Neon
-                Location = new Point(30, 30),
+                Location = new Point(80, 28),
                 AutoSize = true
             };
             this.Controls.Add(lblTitle);
 
             lblSubtitle = new Label
             {
-                Text = "Plataforma Industrial de Impressão 3D & Gestão Integrada • v1.0.0-Beta",
+                Text = "Plataforma Industrial de Impressão 3D • Arquitetura Híbrida Local-First",
                 Font = new Font("Segoe UI", 9.5f, FontStyle.Regular),
                 ForeColor = Color.FromArgb(148, 163, 184), // Slate-400
-                Location = new Point(32, 75),
+                Location = new Point(82, 74),
                 AutoSize = true
             };
             this.Controls.Add(lblSubtitle);
 
             progressBar = new ProgressBar
             {
-                Location = new Point(32, 130),
-                Size = new Size(456, 12),
+                Location = new Point(32, 138),
+                Size = new Size(476, 12),
                 Minimum = 0,
                 Maximum = 100,
                 Value = 10,
@@ -718,29 +798,53 @@ namespace CtrlFarm.Desktop
 
             lblStatus = new Label
             {
-                Text = "Carregando componentes do sistema...",
+                Text = "Inicializando plataforma e serviços locais...",
                 Font = new Font("Segoe UI", 9, FontStyle.Regular),
                 ForeColor = Color.FromArgb(203, 213, 225),
-                Location = new Point(32, 155),
-                Size = new Size(456, 40)
+                Location = new Point(32, 164),
+                Size = new Size(476, 44)
             };
             this.Controls.Add(lblStatus);
 
             Label lblFooter = new Label
             {
-                Text = "Iniciando serviços locais • Porta 3000 / 3001 • Conexão Segura",
+                Text = "Inicialização Silenciosa Nativa • Portas 3000 / 3001 • Criptografia RSA / Firebase",
                 Font = new Font("Segoe UI", 8, FontStyle.Italic),
                 ForeColor = Color.FromArgb(100, 116, 139),
-                Location = new Point(32, 215),
+                Location = new Point(32, 235),
                 AutoSize = true
             };
             this.Controls.Add(lblFooter);
 
             this.Paint += (s, e) =>
             {
+                Graphics g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                // Borda industrial com canto sutil
                 using (var pen = new Pen(Color.FromArgb(38, 50, 70), 2)) // #263246
                 {
-                    e.Graphics.DrawRectangle(pen, 0, 0, this.Width - 1, this.Height - 1);
+                    g.DrawRectangle(pen, 1, 1, this.Width - 2, this.Height - 2);
+                }
+
+                // Desenha o badge de ícone no canto superior esquerdo
+                if (appIcon != null)
+                {
+                    g.DrawIcon(appIcon, new Rectangle(30, 28, 42, 42));
+                }
+                else
+                {
+                    using (var brush = new SolidBrush(Color.FromArgb(16, 24, 39)))
+                    using (var borderPen = new Pen(Color.FromArgb(32, 201, 151), 1.5f))
+                    {
+                        var rect = new Rectangle(30, 28, 42, 42);
+                        g.FillRectangle(brush, rect);
+                        g.DrawRectangle(borderPen, rect);
+                        using (var font = new Font("Segoe UI Emoji", 16, FontStyle.Regular))
+                        {
+                            g.DrawString("🖨️", font, Brushes.White, 35, 33);
+                        }
+                    }
                 }
             };
         }

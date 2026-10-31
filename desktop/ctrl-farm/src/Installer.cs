@@ -370,9 +370,9 @@ namespace CtrlFarm.Installer
                 BackColor = cardDark
             };
 
-            string defaultPath = File.Exists(Path.Combine(resolvedSourceDir, "package.json"))
-                ? resolvedSourceDir
-                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "CTRL-Farm");
+            string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            string localPrograms = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "CTRL-Farm");
+            string defaultPath = localPrograms;
 
             txtInstallPath = new TextBox
             {
@@ -641,12 +641,16 @@ namespace CtrlFarm.Installer
                     UpdateProgress(15, "Copiando binários do aplicativo...", "Extraindo CTRL-Farm.exe...");
 
                     string targetExe = Path.Combine(targetDir, "CTRL-Farm.exe");
+                    string targetUninstaller = Path.Combine(targetDir, "Uninstall.exe");
                     string targetIcon = Path.Combine(targetDir, "icon.ico");
 
                     // 1. Copy or extract CTRL-Farm.exe
                     ExtractOrCopyResource("CtrlFarm.exe", targetExe, Path.Combine(resolvedSourceDir, "desktop", "ctrl-farm", "dist", "CTRL-Farm.exe"));
 
-                    // 2. Copy or extract icon
+                    // 2. Copy or extract Uninstall.exe (Desinstalador Gráfico Nativo)
+                    ExtractOrCopyResource("Uninstall.exe", targetUninstaller, Path.Combine(resolvedSourceDir, "desktop", "ctrl-farm", "dist", "Uninstall.exe"));
+
+                    // 3. Copy or extract icon
                     ExtractOrCopyResource("icon.ico", targetIcon, Path.Combine(resolvedSourceDir, "desktop", "ctrl-farm", "icon.ico"));
 
                     // 3. Embutir node.exe portátil no destino (Zero Dependência)
@@ -892,7 +896,12 @@ namespace CtrlFarm.Installer
                         key.SetValue("Publisher", "CTRL-Farm Systems");
                         key.SetValue("DisplayIcon", File.Exists(iconPath) ? iconPath : exePath);
                         key.SetValue("InstallLocation", installDir);
-                        key.SetValue("UninstallString", "\"" + Path.Combine(installDir, "Uninstall.cmd") + "\"");
+                        string uninstallerPath = Path.Combine(installDir, "Uninstall.exe");
+                        if (!File.Exists(uninstallerPath))
+                        {
+                            uninstallerPath = Path.Combine(installDir, "Uninstall.cmd");
+                        }
+                        key.SetValue("UninstallString", "\"" + uninstallerPath + "\"");
                         key.SetValue("NoModify", 1, RegistryValueKind.DWord);
                         key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
                     }

@@ -18,8 +18,9 @@ echo.
 cd /d "%~dp0\.."
 
 if not exist "desktop\ctrl-farm\dist" mkdir "desktop\ctrl-farm\dist"
+if not exist "docs\downloads" mkdir "docs\downloads"
 
-echo 1. Compilando CTRL-Farm.exe...
+echo 1. Compilando CTRL-Farm.exe (Modo Silencioso /target:winexe)...
 "%CSC%" /nologo /target:winexe /optimize+ /out:desktop\ctrl-farm\dist\CTRL-Farm.exe /win32icon:desktop\ctrl-farm\icon.ico desktop\ctrl-farm\src\Program.cs
 if errorlevel 1 (
     echo [ERRO] Falha ao compilar CTRL-Farm.exe
@@ -29,20 +30,47 @@ copy /y desktop\ctrl-farm\dist\CTRL-Farm.exe .\CTRL-Farm.exe >nul
 echo [OK] CTRL-Farm.exe gerado com sucesso!
 
 echo.
-echo 2. Compilando CTRL-Farm-Setup.exe (Instalador Autocontido de 1 Clique)...
-"%CSC%" /nologo /target:winexe /optimize+ /out:desktop\ctrl-farm\dist\CTRL-Farm-Setup.exe /win32icon:desktop\ctrl-farm\icon.ico /resource:desktop\ctrl-farm\dist\CTRL-Farm.exe,CtrlFarm.exe /resource:desktop\ctrl-farm\icon.ico,icon.ico desktop\ctrl-farm\src\Installer.cs
+echo 2. Compilando Uninstall.exe (Desinstalador Grafico Nativo WinForms)...
+"%CSC%" /nologo /target:winexe /optimize+ /out:desktop\ctrl-farm\dist\Uninstall.exe /win32icon:desktop\ctrl-farm\icon.ico desktop\ctrl-farm\src\Uninstaller.cs
+if errorlevel 1 (
+    echo [ERRO] Falha ao compilar Uninstall.exe
+    exit /b 1
+)
+copy /y desktop\ctrl-farm\dist\Uninstall.exe .\Uninstall.exe >nul
+echo [OK] Uninstall.exe gerado com sucesso!
+
+echo.
+echo 3. Compilando CTRL-Farm-Setup.exe (Instalador Autocontido de 1 Clique)...
+"%CSC%" /nologo /target:winexe /optimize+ /out:desktop\ctrl-farm\dist\CTRL-Farm-Setup.exe /win32icon:desktop\ctrl-farm\icon.ico /resource:desktop\ctrl-farm\dist\CTRL-Farm.exe,CtrlFarm.exe /resource:desktop\ctrl-farm\dist\Uninstall.exe,Uninstall.exe /resource:desktop\ctrl-farm\icon.ico,icon.ico desktop\ctrl-farm\src\Installer.cs
 if errorlevel 1 (
     echo [ERRO] Falha ao compilar CTRL-Farm-Setup.exe
     exit /b 1
 )
 copy /y desktop\ctrl-farm\dist\CTRL-Farm-Setup.exe .\CTRL-Farm-Setup.exe >nul
+copy /y desktop\ctrl-farm\dist\CTRL-Farm-Setup.exe .\docs\downloads\CTRL-Farm-Setup.exe >nul
 echo [OK] CTRL-Farm-Setup.exe gerado com sucesso!
+
+echo.
+echo 4. Verificando Inno Setup (Opcional para pacote adicional)...
+set ISCC="%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
+if not exist %ISCC% set ISCC="%ProgramFiles%\Inno Setup 6\ISCC.exe"
+if exist %ISCC% (
+    echo Compilando pacote via Inno Setup 6...
+    %ISCC% desktop\ctrl-farm\ctrl-farm.iss
+    if not errorlevel 1 (
+        echo [OK] Pacote Inno Setup gerado com sucesso!
+    )
+) else (
+    echo [INFO] Inno Setup nao instalado no caminho padrao. O instalador autocontido WinForms (.NET) foi gerado perfeitamente!
+)
 
 echo.
 echo =====================================================================
 echo  EXECUTAVEIS CLIENTE DO CTRL-FARM GERADOS COM SUCESSO!
 echo =====================================================================
 echo  Arquivos prontos para distribuicao:
-echo   - CTRL-Farm.exe
-echo   - CTRL-Farm-Setup.exe
+echo   - CTRL-Farm.exe (Executavel nativo silencioso)
+echo   - Uninstall.exe (Desinstalador grafico nativo)
+echo   - CTRL-Farm-Setup.exe (Instalador autocontido oficial)
+echo   - docs\downloads\CTRL-Farm-Setup.exe (Copia para distribuicao web)
 echo =====================================================================

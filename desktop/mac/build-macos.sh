@@ -80,6 +80,8 @@ echo "💿 7. Gerando imagem de disco comprimida CTRL-Farm.dmg..."
 if command -v hdiutil >/dev/null 2>&1; then
   hdiutil create -volname "CTRL-Farm" -srcfolder "$STAGE_DIR" -ov -format UDZO "$OUTPUT_DMG"
   cp -f "$OUTPUT_DMG" "$ROOT_DMG"
+  mkdir -p "$PROJECT_ROOT/docs/downloads"
+  cp -f "$OUTPUT_DMG" "$PROJECT_ROOT/docs/downloads/CTRL-Farm.dmg"
   echo "✅ Imagem DMG gerada com sucesso via hdiutil!"
 else
   echo "⚠️  hdiutil nativo não encontrado neste sistema operacional (execução em Windows/Linux)."
