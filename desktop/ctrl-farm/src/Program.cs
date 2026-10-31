@@ -618,15 +618,15 @@ namespace CtrlFarm.Desktop
 
                 if (foundNextCli != null && foundNextCli.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
                 {
-                    psi = new ProcessStartInfo("cmd.exe", string.Format("/c \"\"{0}\" start \"{1}\" -p {2} -H 0.0.0.0\"", foundNextCli, webDir, WebPort));
+                    psi = new ProcessStartInfo("cmd.exe", string.Format("/c \"\"{0}\" start \"{1}\" -p {2} -H 127.0.0.1\"", foundNextCli, webDir, WebPort));
                 }
                 else if (foundNextCli != null)
                 {
-                    psi = new ProcessStartInfo(nodeExe, string.Format("\"{0}\" start \"{1}\" -p {2} -H 0.0.0.0", foundNextCli, webDir, WebPort));
+                    psi = new ProcessStartInfo(nodeExe, string.Format("\"{0}\" start \"{1}\" -p {2} -H 127.0.0.1", foundNextCli, webDir, WebPort));
                 }
                 else
                 {
-                    psi = new ProcessStartInfo("cmd.exe", string.Format("/c npm --prefix \"{0}\" start -- -p {1} -H 0.0.0.0", webDir, WebPort));
+                    psi = new ProcessStartInfo("cmd.exe", string.Format("/c npm --prefix \"{0}\" start -- -p {1} -H 127.0.0.1", webDir, WebPort));
                 }
 
                 psi.WorkingDirectory = workingDir;
@@ -658,7 +658,7 @@ namespace CtrlFarm.Desktop
                         Log("Aviso: Processo inicial do Next.js encerrou. Tentando fallback via npm start...");
                         try
                         {
-                            ProcessStartInfo fallbackPsi = new ProcessStartInfo("cmd.exe", string.Format("/c npm run start -- -p {0} -H 0.0.0.0", WebPort))
+                            ProcessStartInfo fallbackPsi = new ProcessStartInfo("cmd.exe", string.Format("/c npm run start -- -p {0} -H 127.0.0.1", WebPort))
                             {
                                 WorkingDirectory = workingDir,
                                 CreateNoWindow = true,

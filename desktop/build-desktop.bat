@@ -15,6 +15,12 @@ if not exist "%CSC%" (
 echo Usando compilador: %CSC%
 echo.
 
+echo Finalizando processos ativos do CTRL-Farm para liberar os arquivos...
+taskkill /F /IM CTRL-Farm.exe >nul 2>&1
+taskkill /F /IM CTRL-Farm-Setup.exe >nul 2>&1
+taskkill /F /IM Uninstall.exe >nul 2>&1
+timeout /t 1 /nobreak >nul 2>&1
+
 cd /d "%~dp0\.."
 
 if not exist "desktop\ctrl-farm\dist" mkdir "desktop\ctrl-farm\dist"
@@ -27,6 +33,16 @@ if errorlevel 1 (
     exit /b 1
 )
 copy /y desktop\ctrl-farm\dist\CTRL-Farm.exe .\CTRL-Farm.exe >nul
+if exist "%LOCALAPPDATA%\Programs\CTRL-Farm" (
+    copy /y desktop\ctrl-farm\dist\CTRL-Farm.exe "%LOCALAPPDATA%\Programs\CTRL-Farm\CTRL-Farm.exe" >nul
+    echo [OK] Atalho instalado em AppData atualizado com sucesso!
+)
+if exist "%LOCALAPPDATA%\CTRL-Farm" (
+    copy /y ctrlfarm.config.json "%LOCALAPPDATA%\CTRL-Farm\ctrlfarm.config.json" >nul
+)
+if exist "%LOCALAPPDATA%\Programs\CTRL-Farm" (
+    copy /y ctrlfarm.config.json "%LOCALAPPDATA%\Programs\CTRL-Farm\ctrlfarm.config.json" >nul
+)
 echo [OK] CTRL-Farm.exe gerado com sucesso!
 
 echo.
@@ -37,6 +53,9 @@ if errorlevel 1 (
     exit /b 1
 )
 copy /y desktop\ctrl-farm\dist\Uninstall.exe .\Uninstall.exe >nul
+if exist "%LOCALAPPDATA%\Programs\CTRL-Farm" (
+    copy /y desktop\ctrl-farm\dist\Uninstall.exe "%LOCALAPPDATA%\Programs\CTRL-Farm\Uninstall.exe" >nul
+)
 echo [OK] Uninstall.exe gerado com sucesso!
 
 echo.
