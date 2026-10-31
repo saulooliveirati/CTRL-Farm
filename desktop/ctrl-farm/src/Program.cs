@@ -353,15 +353,22 @@ namespace CtrlFarm.Desktop
             UpdateSplash("Iniciando MediaMTX (Streaming & Câmeras RTSP/WebRTC)...", 35);
             StartMediaMtxService();
 
-            UpdateSplash("Iniciando API NestJS do CTRL-Farm (Porta 3001)...", 60);
+            UpdateSplash("Iniciando API NestJS do CTRL-Farm (Porta 3001)...", 50);
             StartApiProcess();
 
-            UpdateSplash("Iniciando Interface Web Next.js (Porta 3000)...", 80);
+            UpdateSplash("Iniciando Interface Web Next.js (Porta 3000)...", 70);
             StartWebProcess();
 
-            UpdateSplash("Validando disponibilidade das portas locais 3001 e 3000...", 92);
+            UpdateSplash("Validando disponibilidade das portas locais 3001 e 3000...", 90);
             WaitForPort(ApiPort, 35000);
-            WaitForPort(WebPort, 35000);
+            WaitForPort(WebPort, 45000);
+
+            if (!IsPortOpen(WebPort, 1500))
+            {
+                Log("Aviso: Porta 3000 ainda inicializando. Aguardando até 15s adicionais...");
+                UpdateSplash("Aguardando interface Web Next.js inicializar...", 95);
+                WaitForPort(WebPort, 15000);
+            }
 
             UpdateSplash("CTRL-Farm pronto! Abrindo janela principal...", 100);
             Thread.Sleep(800);
@@ -588,41 +595,50 @@ namespace CtrlFarm.Desktop
                 string webDir = Path.Combine(appRootDir, "apps", "web");
                 string workingDir = SafeWorkingDirectory(webDir, appRootDir, AppDomain.CurrentDomain.BaseDirectory);
 
-                string nextCli = Path.Combine(appRootDir, "node_modules", "next", "dist", "bin", "next");
-                if (!File.Exists(nextCli))
+                string[] candidateNextCli = new string[]
                 {
-                    nextCli = Path.Combine(webDir, "node_modules", "next", "dist", "bin", "next");
-                }
-                if (!File.Exists(nextCli))
+                    Path.Combine(webDir, "node_modules", "next", "dist", "bin", "next"),
+                    Path.Combine(appRootDir, "node_modules", "next", "dist", "bin", "next"),
+                    Path.Combine(webDir, "node_modules", ".bin", "next.cmd"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "node_modules", "next", "dist", "bin", "next")
+                };
+
+                string foundNextCli = null;
+                foreach (var cand in candidateNextCli)
                 {
-                    nextCli = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "node_modules", "next", "dist", "bin", "next");
+                    if (File.Exists(cand))
+                    {
+                        foundNextCli = cand;
+                        break;
+                    }
                 }
 
                 string nodeExe = FindNodeExecutable();
-                string args = "";
+                ProcessStartInfo psi;
 
-                if (File.Exists(nextCli))
+                if (foundNextCli != null && foundNextCli.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
                 {
-                    args = string.Format("\"{0}\" start -p {1}", nextCli, WebPort);
+                    psi = new ProcessStartInfo("cmd.exe", string.Format("/c \"\"{0}\" start \"{1}\" -p {2} -H 0.0.0.0\"", foundNextCli, webDir, WebPort));
+                }
+                else if (foundNextCli != null)
+                {
+                    psi = new ProcessStartInfo(nodeExe, string.Format("\"{0}\" start \"{1}\" -p {2} -H 0.0.0.0", foundNextCli, webDir, WebPort));
                 }
                 else
                 {
-                    args = string.Format("-e \"require('next/dist/bin/next')\" start -p {0}", WebPort);
+                    psi = new ProcessStartInfo("cmd.exe", string.Format("/c npm --prefix \"{0}\" start -- -p {1} -H 0.0.0.0", webDir, WebPort));
                 }
 
-                Log("Executando Next.js Web com: " + nodeExe + " " + args + " em " + workingDir);
-
-                ProcessStartInfo psi = new ProcessStartInfo(nodeExe, args)
-                {
-                    WorkingDirectory = workingDir,
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    WindowStyle = ProcessWindowStyle.Hidden,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                };
+                psi.WorkingDirectory = workingDir;
+                psi.CreateNoWindow = true;
+                psi.UseShellExecute = false;
+                psi.WindowStyle = ProcessWindowStyle.Hidden;
+                psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError = true;
                 psi.EnvironmentVariables["PORT"] = WebPort.ToString();
                 psi.EnvironmentVariables["NODE_ENV"] = "production";
+
+                Log("Executando Next.js Web: " + psi.FileName + " " + psi.Arguments + " em " + workingDir);
 
                 webProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
                 webProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("web.log", e.Data); };
@@ -632,6 +648,42 @@ namespace CtrlFarm.Desktop
                 webProcess.BeginOutputReadLine();
                 webProcess.BeginErrorReadLine();
                 Log("Processo Web iniciado silenciosamente com PID: " + webProcess.Id);
+
+                // Verificacao rapida de sobrevivencia do processo (fallback se encerrar de imediato)
+                ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    Thread.Sleep(4500);
+                    if (webProcess != null && webProcess.HasExited && !IsPortOpen(WebPort, 1000))
+                    {
+                        Log("Aviso: Processo inicial do Next.js encerrou. Tentando fallback via npm start...");
+                        try
+                        {
+                            ProcessStartInfo fallbackPsi = new ProcessStartInfo("cmd.exe", string.Format("/c npm run start -- -p {0} -H 0.0.0.0", WebPort))
+                            {
+                                WorkingDirectory = workingDir,
+                                CreateNoWindow = true,
+                                UseShellExecute = false,
+                                WindowStyle = ProcessWindowStyle.Hidden,
+                                RedirectStandardOutput = true,
+                                RedirectStandardError = true
+                            };
+                            fallbackPsi.EnvironmentVariables["PORT"] = WebPort.ToString();
+                            fallbackPsi.EnvironmentVariables["NODE_ENV"] = "production";
+
+                            webProcess = new Process { StartInfo = fallbackPsi, EnableRaisingEvents = true };
+                            webProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("web.log", e.Data); };
+                            webProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("web.log", "[ERROR] " + e.Data); };
+                            webProcess.Start();
+                            webProcess.BeginOutputReadLine();
+                            webProcess.BeginErrorReadLine();
+                            Log("Processo Web de fallback iniciado com PID: " + webProcess.Id);
+                        }
+                        catch (Exception exFall)
+                        {
+                            Log("Erro no fallback do Next.js: " + exFall.Message);
+                        }
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -663,8 +715,16 @@ namespace CtrlFarm.Desktop
         {
             try
             {
+                string line = string.Format("[{0:HH:mm:ss}] {1}\r\n", DateTime.Now, text);
                 string path = Path.Combine(logsDir, fileName);
-                File.AppendAllText(path, string.Format("[{0:HH:mm:ss}] {1}\r\n", DateTime.Now, text));
+                File.AppendAllText(path, line);
+
+                if (!string.IsNullOrEmpty(appRootDir) && Directory.Exists(appRootDir))
+                {
+                    string devLogs = Path.Combine(appRootDir, "logs");
+                    if (!Directory.Exists(devLogs)) Directory.CreateDirectory(devLogs);
+                    File.AppendAllText(Path.Combine(devLogs, fileName), line);
+                }
             }
             catch { }
         }
@@ -682,10 +742,20 @@ namespace CtrlFarm.Desktop
                         client.EndConnect(result);
                         return true;
                     }
-                    return false;
                 }
             }
-            catch { return false; }
+            catch { }
+
+            try
+            {
+                using (var client = new TcpClient("localhost", port))
+                {
+                    return client.Connected;
+                }
+            }
+            catch { }
+
+            return false;
         }
 
         private static void WaitForPort(int port, int maxWaitMs = 30000)
@@ -710,7 +780,7 @@ namespace CtrlFarm.Desktop
                 return;
             }
 
-            string url = string.Format("http://localhost:{0}", WebPort);
+            string url = string.Format("http://127.0.0.1:{0}", WebPort);
             string profileDir = Path.Combine(dataDir, "WebProfile");
 
             string browserPath = FindChromiumBrowser();
@@ -806,7 +876,7 @@ namespace CtrlFarm.Desktop
 
             var externalItem = new ToolStripMenuItem("🌐  Abrir no Navegador Externo", null, (s, e) =>
             {
-                Process.Start(new ProcessStartInfo(string.Format("http://localhost:{0}", WebPort)) { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo(string.Format("http://127.0.0.1:{0}", WebPort)) { UseShellExecute = true });
             });
             trayMenu.Items.Add(externalItem);
 
