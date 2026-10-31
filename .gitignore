@@ -27,5 +27,6 @@ keys/
 !docs/downloads/*.exe
 !docs/downloads/*.dmg
 *.crt
+ctrlfarm.config.json
 .DS_Store
 Thumbs.db

@@ -97,22 +97,87 @@ namespace CtrlFarm.Installer
         private void DetectSourceDirectory()
         {
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            if (File.Exists(Path.Combine(baseDir, "package.json")))
+            if (IsValidProjectDir(baseDir))
             {
                 resolvedSourceDir = baseDir;
+                return;
             }
-            else if (File.Exists(Path.Combine(baseDir, "..", "..", "package.json")))
+            if (IsValidProjectDir(Path.Combine(baseDir, "..", "..")))
             {
                 resolvedSourceDir = Path.GetFullPath(Path.Combine(baseDir, "..", ".."));
+                return;
             }
-            else if (File.Exists(Path.Combine(baseDir, "..", "package.json")))
+            if (IsValidProjectDir(Path.Combine(baseDir, "..")))
             {
                 resolvedSourceDir = Path.GetFullPath(Path.Combine(baseDir, ".."));
+                return;
             }
-            else
+            if (IsValidProjectDir(Path.Combine(baseDir, "..", "..", "..")))
             {
-                resolvedSourceDir = baseDir;
+                resolvedSourceDir = Path.GetFullPath(Path.Combine(baseDir, "..", "..", ".."));
+                return;
             }
+
+            // 1. Registro do Windows
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\CTRL-Farm"))
+                {
+                    if (key != null)
+                    {
+                        string regRoot = key.GetValue("AppRootDir") as string;
+                        if (IsValidProjectDir(regRoot)) { resolvedSourceDir = regRoot; return; }
+                    }
+                }
+            }
+            catch { }
+
+            // 2. Caminhos conhecidos em unidades locais
+            string[] candidates = new string[]
+            {
+                @"E:\CTRL-Farm",
+                @"D:\CTRL-Farm",
+                @"C:\CTRL-Farm",
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "CTRL-Farm"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "source", "repos", "CTRL-Farm"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Desktop", "CTRL-Farm"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "CTRL-Farm")
+            };
+            foreach (var cand in candidates)
+            {
+                if (IsValidProjectDir(cand)) { resolvedSourceDir = cand; return; }
+            }
+
+            // 3. Varredura por todas as unidades ativas
+            try
+            {
+                foreach (var drive in DriveInfo.GetDrives())
+                {
+                    if (drive.IsReady)
+                    {
+                        string driveCand = Path.Combine(drive.RootDirectory.FullName, "CTRL-Farm");
+                        if (IsValidProjectDir(driveCand)) { resolvedSourceDir = driveCand; return; }
+                    }
+                }
+            }
+            catch { }
+
+            resolvedSourceDir = baseDir;
+        }
+
+        private static bool IsValidProjectDir(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return false;
+            try
+            {
+                if (!Directory.Exists(path)) return false;
+                if (File.Exists(Path.Combine(path, "package.json"))) return true;
+                if (Directory.Exists(Path.Combine(path, "apps", "api")) ||
+                    Directory.Exists(Path.Combine(path, "apps", "web"))) return true;
+                if (File.Exists(Path.Combine(path, "apps", "api", "dist", "main.js"))) return true;
+            }
+            catch { }
+            return false;
         }
 
         private void InitializeComponent()
@@ -741,6 +806,17 @@ namespace CtrlFarm.Installer
                         }
                     }
 
+                    // 6.5. Gravar ctrlfarm.config.json para persistencia da raiz dos servicos
+                    string finalAppRoot = IsValidProjectDir(resolvedSourceDir) ? resolvedSourceDir : targetDir;
+                    string configJson = string.Format("{{\r\n  \"appRootDir\": \"{0}\",\r\n  \"installedAt\": \"{1:yyyy-MM-dd HH:mm:ss}\",\r\n  \"version\": \"{2}\"\r\n}}",
+                        finalAppRoot.Replace("\\", "\\\\"), DateTime.Now, AppVersion);
+
+                    try { File.WriteAllText(Path.Combine(targetDir, "ctrlfarm.config.json"), configJson); } catch { }
+
+                    string localAppData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CTRL-Farm");
+                    if (!Directory.Exists(localAppData)) Directory.CreateDirectory(localAppData);
+                    try { File.WriteAllText(Path.Combine(localAppData, "ctrlfarm.config.json"), configJson); } catch { }
+
                     Thread.Sleep(300);
                     UpdateProgress(40, "Criando scripts de controle e desinstalação...", "Gerando scripts auxiliares...");
 
@@ -883,10 +959,22 @@ namespace CtrlFarm.Installer
             catch { }
         }
 
-        private static void RegisterWindowsApp(string installDir, string exePath, string iconPath)
+        private void RegisterWindowsApp(string installDir, string exePath, string iconPath)
         {
             try
             {
+                string finalAppRoot = IsValidProjectDir(resolvedSourceDir) ? resolvedSourceDir : installDir;
+
+                using (RegistryKey appKey = Registry.CurrentUser.CreateSubKey(@"Software\CTRL-Farm"))
+                {
+                    if (appKey != null)
+                    {
+                        appKey.SetValue("AppRootDir", finalAppRoot);
+                        appKey.SetValue("InstallLocation", installDir);
+                        appKey.SetValue("DisplayVersion", AppVersion);
+                    }
+                }
+
                 using (RegistryKey key = Registry.CurrentUser.CreateSubKey(RegistryKeyName))
                 {
                     if (key != null)
@@ -896,6 +984,7 @@ namespace CtrlFarm.Installer
                         key.SetValue("Publisher", "CTRL-Farm Systems");
                         key.SetValue("DisplayIcon", File.Exists(iconPath) ? iconPath : exePath);
                         key.SetValue("InstallLocation", installDir);
+                        key.SetValue("AppRootDir", finalAppRoot);
                         string uninstallerPath = Path.Combine(installDir, "Uninstall.exe");
                         if (!File.Exists(uninstallerPath))
                         {

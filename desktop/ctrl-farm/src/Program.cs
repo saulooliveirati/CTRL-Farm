@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
+using Microsoft.Win32;
 
 namespace CtrlFarm.Desktop
 {
@@ -103,23 +104,6 @@ namespace CtrlFarm.Desktop
         private static void ResolvePaths()
         {
             string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-            if (File.Exists(Path.Combine(baseDir, "package.json")))
-            {
-                appRootDir = baseDir;
-            }
-            else if (File.Exists(Path.Combine(baseDir, "..", "..", "package.json")))
-            {
-                appRootDir = Path.GetFullPath(Path.Combine(baseDir, "..", ".."));
-            }
-            else if (File.Exists(Path.Combine(baseDir, "..", "package.json")))
-            {
-                appRootDir = Path.GetFullPath(Path.Combine(baseDir, ".."));
-            }
-            else
-            {
-                appRootDir = baseDir;
-            }
-
             dataDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "CTRL-Farm");
@@ -127,6 +111,217 @@ namespace CtrlFarm.Desktop
 
             if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
             if (!Directory.Exists(logsDir)) Directory.CreateDirectory(logsDir);
+
+            // 1. Prioridade: Ler caminho configurado em ctrlfarm.config.json
+            string detectedRoot = ReadConfigAppRootDir(Path.Combine(baseDir, "ctrlfarm.config.json"));
+            if (string.IsNullOrEmpty(detectedRoot))
+            {
+                detectedRoot = ReadConfigAppRootDir(Path.Combine(dataDir, "ctrlfarm.config.json"));
+            }
+
+            // 2. Registro do Windows (onde o instalador grava o caminho oficial)
+            if (string.IsNullOrEmpty(detectedRoot))
+            {
+                detectedRoot = ReadRegistryAppRootDir();
+            }
+
+            // 3. Caminhos relativos a partir do executavel (modo dev / pacote autocontido)
+            if (string.IsNullOrEmpty(detectedRoot))
+            {
+                if (IsValidAppRoot(baseDir))
+                {
+                    detectedRoot = baseDir;
+                }
+                else if (IsValidAppRoot(Path.Combine(baseDir, "..", "..")))
+                {
+                    detectedRoot = Path.GetFullPath(Path.Combine(baseDir, "..", ".."));
+                }
+                else if (IsValidAppRoot(Path.Combine(baseDir, "..")))
+                {
+                    detectedRoot = Path.GetFullPath(Path.Combine(baseDir, ".."));
+                }
+                else if (IsValidAppRoot(Path.Combine(baseDir, "..", "..", "..")))
+                {
+                    detectedRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", ".."));
+                }
+            }
+
+            // 4. Locais conhecidos da maquina do desenvolvedor e instalacoes tipicas
+            if (string.IsNullOrEmpty(detectedRoot))
+            {
+                string[] candidates = new string[]
+                {
+                    @"E:\CTRL-Farm",
+                    @"D:\CTRL-Farm",
+                    @"C:\CTRL-Farm",
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "CTRL-Farm"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "source", "repos", "CTRL-Farm"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Desktop", "CTRL-Farm"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "CTRL-Farm")
+                };
+
+                foreach (var cand in candidates)
+                {
+                    if (IsValidAppRoot(cand))
+                    {
+                        detectedRoot = cand;
+                        break;
+                    }
+                }
+            }
+
+            // 5. Varredura por todas as unidades ativas do sistema
+            if (string.IsNullOrEmpty(detectedRoot))
+            {
+                try
+                {
+                    foreach (var drive in DriveInfo.GetDrives())
+                    {
+                        if (drive.IsReady)
+                        {
+                            string driveCand = Path.Combine(drive.RootDirectory.FullName, "CTRL-Farm");
+                            if (IsValidAppRoot(driveCand))
+                            {
+                                detectedRoot = driveCand;
+                                break;
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // Se detectou uma raiz valida, salva a associacao para acelerar proximas execucoes
+            if (!string.IsNullOrEmpty(detectedRoot) && IsValidAppRoot(detectedRoot))
+            {
+                appRootDir = Path.GetFullPath(detectedRoot);
+                SaveConfigAppRootDir(appRootDir);
+            }
+            else
+            {
+                appRootDir = baseDir;
+            }
+        }
+
+        private static bool IsValidAppRoot(string candidate)
+        {
+            if (string.IsNullOrEmpty(candidate)) return false;
+            try
+            {
+                if (!Directory.Exists(candidate)) return false;
+                if (File.Exists(Path.Combine(candidate, "package.json"))) return true;
+                if (Directory.Exists(Path.Combine(candidate, "apps", "api")) &&
+                    Directory.Exists(Path.Combine(candidate, "apps", "web"))) return true;
+                if (File.Exists(Path.Combine(candidate, "apps", "api", "dist", "main.js"))) return true;
+            }
+            catch { }
+            return false;
+        }
+
+        private static string ReadConfigAppRootDir(string configPath)
+        {
+            try
+            {
+                if (File.Exists(configPath))
+                {
+                    string content = File.ReadAllText(configPath);
+                    int idx = content.IndexOf("\"appRootDir\"", StringComparison.OrdinalIgnoreCase);
+                    if (idx >= 0)
+                    {
+                        int colon = content.IndexOf(':', idx);
+                        if (colon >= 0)
+                        {
+                            int firstQuote = content.IndexOf('"', colon);
+                            if (firstQuote >= 0)
+                            {
+                                int secondQuote = content.IndexOf('"', firstQuote + 1);
+                                if (secondQuote >= 0)
+                                {
+                                    string raw = content.Substring(firstQuote + 1, secondQuote - firstQuote - 1);
+                                    string clean = raw.Replace("\\\\", "\\").Trim();
+                                    if (IsValidAppRoot(clean)) return clean;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private static string ReadRegistryAppRootDir()
+        {
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\CTRL-Farm"))
+                {
+                    if (key != null)
+                    {
+                        string val = key.GetValue("AppRootDir") as string;
+                        if (IsValidAppRoot(val)) return val;
+                    }
+                }
+            }
+            catch { }
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\CTRL-Farm"))
+                {
+                    if (key != null)
+                    {
+                        string val = key.GetValue("AppRootDir") as string;
+                        if (IsValidAppRoot(val)) return val;
+                        string loc = key.GetValue("InstallLocation") as string;
+                        if (IsValidAppRoot(loc)) return loc;
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private static void SaveConfigAppRootDir(string root)
+        {
+            try
+            {
+                string json = string.Format("{{\r\n  \"appRootDir\": \"{0}\",\r\n  \"updatedAt\": \"{1:yyyy-MM-dd HH:mm:ss}\"\r\n}}",
+                    root.Replace("\\", "\\\\"), DateTime.Now);
+                string dataConfig = Path.Combine(dataDir, "ctrlfarm.config.json");
+                File.WriteAllText(dataConfig, json);
+
+                string baseConfig = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ctrlfarm.config.json");
+                try { File.WriteAllText(baseConfig, json); } catch { }
+
+                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\CTRL-Farm"))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("AppRootDir", root);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private static string SafeWorkingDirectory(params string[] candidateDirs)
+        {
+            if (candidateDirs != null)
+            {
+                foreach (var dir in candidateDirs)
+                {
+                    if (!string.IsNullOrEmpty(dir))
+                    {
+                        try
+                        {
+                            if (Directory.Exists(dir)) return dir;
+                        }
+                        catch { }
+                    }
+                }
+            }
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            return Directory.Exists(baseDir) ? baseDir : Path.GetTempPath();
         }
 
         private static void InitLogs()
@@ -252,7 +447,7 @@ namespace CtrlFarm.Desktop
                     Log("Iniciando PostgreSQL Portátil: " + foundPgCtl + " -D " + portablePgDataDir);
                     ProcessStartInfo startPsi = new ProcessStartInfo(foundPgCtl, string.Format("start -D \"{0}\" -l \"{1}\" -o \"-p {2}\"", portablePgDataDir, pgLogFile, DbPort))
                     {
-                        WorkingDirectory = Path.GetDirectoryName(foundPgCtl),
+                        WorkingDirectory = SafeWorkingDirectory(Path.GetDirectoryName(foundPgCtl), dataDir, appRootDir, AppDomain.CurrentDomain.BaseDirectory),
                         CreateNoWindow = true,
                         UseShellExecute = false,
                         WindowStyle = ProcessWindowStyle.Hidden
@@ -284,26 +479,26 @@ namespace CtrlFarm.Desktop
 
         private static void StartMediaMtxService()
         {
-            string mediamtxExe = Path.Combine(appRootDir, "bin", "mediamtx", "mediamtx.exe");
-            string mediamtxYml = Path.Combine(appRootDir, "bin", "mediamtx", "mediamtx.yml");
-
-            if (!File.Exists(mediamtxExe))
-            {
-                Log("Executável do MediaMTX não encontrado em: " + mediamtxExe);
-                return;
-            }
-
-            if (IsPortOpen(8890, 800) || IsPortOpen(9998, 800))
-            {
-                Log("MediaMTX já está em execução.");
-                return;
-            }
-
             try
             {
+                string mediamtxExe = Path.Combine(appRootDir, "bin", "mediamtx", "mediamtx.exe");
+                string mediamtxYml = Path.Combine(appRootDir, "bin", "mediamtx", "mediamtx.yml");
+
+                if (!File.Exists(mediamtxExe))
+                {
+                    Log("Executável do MediaMTX não encontrado em: " + mediamtxExe);
+                    return;
+                }
+
+                if (IsPortOpen(8890, 800) || IsPortOpen(9998, 800))
+                {
+                    Log("MediaMTX já está em execução.");
+                    return;
+                }
+
                 ProcessStartInfo psi = new ProcessStartInfo(mediamtxExe, "\"" + mediamtxYml + "\"")
                 {
-                    WorkingDirectory = Path.GetDirectoryName(mediamtxExe),
+                    WorkingDirectory = SafeWorkingDirectory(Path.GetDirectoryName(mediamtxExe), appRootDir, AppDomain.CurrentDomain.BaseDirectory),
                     CreateNoWindow = true,
                     UseShellExecute = false,
                     WindowStyle = ProcessWindowStyle.Hidden
@@ -313,96 +508,135 @@ namespace CtrlFarm.Desktop
             }
             catch (Exception ex)
             {
-                Log("Erro ao iniciar MediaMTX: " + ex.Message);
+                Log("Aviso não fatal ao iniciar MediaMTX: " + ex.Message);
             }
         }
 
         private static void StartApiProcess()
         {
-            if (IsPortOpen(ApiPort, 1000))
+            try
             {
-                Log("API CTRL-Farm já está rodando na porta " + ApiPort);
-                return;
+                if (IsPortOpen(ApiPort, 1000))
+                {
+                    Log("API CTRL-Farm já está rodando na porta " + ApiPort);
+                    return;
+                }
+
+                string apiDir = Path.Combine(appRootDir, "apps", "api");
+                string workingDir = SafeWorkingDirectory(apiDir, appRootDir, AppDomain.CurrentDomain.BaseDirectory);
+
+                string distMain = Path.Combine(apiDir, "dist", "main.js");
+                if (!File.Exists(distMain))
+                {
+                    distMain = Path.Combine(apiDir, "dist", "main");
+                }
+                if (!File.Exists(distMain))
+                {
+                    distMain = Path.Combine(appRootDir, "dist", "apps", "api", "main.js");
+                }
+                if (!File.Exists(distMain))
+                {
+                    distMain = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "apps", "api", "dist", "main.js");
+                }
+
+                string nodeExe = FindNodeExecutable();
+                Log("Executando Node API com: " + nodeExe + " -> " + distMain + " em " + workingDir);
+
+                if (!File.Exists(distMain))
+                {
+                    Log("Aviso: Binário da API não encontrado em: " + distMain + ". O aplicativo prosseguirá em modo resiliente.");
+                    return;
+                }
+
+                ProcessStartInfo psi = new ProcessStartInfo(nodeExe, "\"" + distMain + "\"")
+                {
+                    WorkingDirectory = workingDir,
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                psi.EnvironmentVariables["PORT"] = ApiPort.ToString();
+                psi.EnvironmentVariables["NODE_ENV"] = "production";
+
+                apiProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
+                apiProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("api.log", e.Data); };
+                apiProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("api.log", "[ERROR] " + e.Data); };
+
+                apiProcess.Start();
+                apiProcess.BeginOutputReadLine();
+                apiProcess.BeginErrorReadLine();
+                Log("Processo da API iniciado silenciosamente com PID: " + apiProcess.Id);
             }
-
-            string apiDir = Path.Combine(appRootDir, "apps", "api");
-            string distMain = Path.Combine(apiDir, "dist", "main.js");
-
-            if (!File.Exists(distMain))
+            catch (Exception ex)
             {
-                distMain = Path.Combine(apiDir, "dist", "main");
+                Log("Aviso não fatal ao iniciar processo da API: " + ex.Message);
             }
-
-            string nodeExe = FindNodeExecutable();
-            Log("Executando Node API com: " + nodeExe + " -> " + distMain);
-
-            ProcessStartInfo psi = new ProcessStartInfo(nodeExe, "\"" + distMain + "\"")
-            {
-                WorkingDirectory = apiDir,
-                CreateNoWindow = true,
-                UseShellExecute = false,
-                WindowStyle = ProcessWindowStyle.Hidden,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
-            psi.EnvironmentVariables["PORT"] = ApiPort.ToString();
-            psi.EnvironmentVariables["NODE_ENV"] = "production";
-
-            apiProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
-            apiProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("api.log", e.Data); };
-            apiProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("api.log", "[ERROR] " + e.Data); };
-
-            apiProcess.Start();
-            apiProcess.BeginOutputReadLine();
-            apiProcess.BeginErrorReadLine();
-            Log("Processo da API iniciado silenciosamente com PID: " + apiProcess.Id);
         }
 
         private static void StartWebProcess()
         {
-            if (IsPortOpen(WebPort, 1000))
+            try
             {
-                Log("Interface Web já está rodando na porta " + WebPort);
-                return;
+                if (IsPortOpen(WebPort, 1000))
+                {
+                    Log("Interface Web já está rodando na porta " + WebPort);
+                    return;
+                }
+
+                string webDir = Path.Combine(appRootDir, "apps", "web");
+                string workingDir = SafeWorkingDirectory(webDir, appRootDir, AppDomain.CurrentDomain.BaseDirectory);
+
+                string nextCli = Path.Combine(appRootDir, "node_modules", "next", "dist", "bin", "next");
+                if (!File.Exists(nextCli))
+                {
+                    nextCli = Path.Combine(webDir, "node_modules", "next", "dist", "bin", "next");
+                }
+                if (!File.Exists(nextCli))
+                {
+                    nextCli = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "node_modules", "next", "dist", "bin", "next");
+                }
+
+                string nodeExe = FindNodeExecutable();
+                string args = "";
+
+                if (File.Exists(nextCli))
+                {
+                    args = string.Format("\"{0}\" start -p {1}", nextCli, WebPort);
+                }
+                else
+                {
+                    args = string.Format("-e \"require('next/dist/bin/next')\" start -p {0}", WebPort);
+                }
+
+                Log("Executando Next.js Web com: " + nodeExe + " " + args + " em " + workingDir);
+
+                ProcessStartInfo psi = new ProcessStartInfo(nodeExe, args)
+                {
+                    WorkingDirectory = workingDir,
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                psi.EnvironmentVariables["PORT"] = WebPort.ToString();
+                psi.EnvironmentVariables["NODE_ENV"] = "production";
+
+                webProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
+                webProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("web.log", e.Data); };
+                webProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("web.log", "[ERROR] " + e.Data); };
+
+                webProcess.Start();
+                webProcess.BeginOutputReadLine();
+                webProcess.BeginErrorReadLine();
+                Log("Processo Web iniciado silenciosamente com PID: " + webProcess.Id);
             }
-
-            string webDir = Path.Combine(appRootDir, "apps", "web");
-            string nextCli = Path.Combine(appRootDir, "node_modules", "next", "dist", "bin", "next");
-
-            string nodeExe = FindNodeExecutable();
-            string args = "";
-
-            if (File.Exists(nextCli))
+            catch (Exception ex)
             {
-                args = string.Format("\"{0}\" start -p {1}", nextCli, WebPort);
+                Log("Aviso não fatal ao iniciar processo Web: " + ex.Message);
             }
-            else
-            {
-                args = string.Format("-e \"require('next/dist/bin/next')\" start -p {0}", WebPort);
-            }
-
-            Log("Executando Next.js Web com: " + nodeExe + " " + args);
-
-            ProcessStartInfo psi = new ProcessStartInfo(nodeExe, args)
-            {
-                WorkingDirectory = webDir,
-                CreateNoWindow = true,
-                UseShellExecute = false,
-                WindowStyle = ProcessWindowStyle.Hidden,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
-            psi.EnvironmentVariables["PORT"] = WebPort.ToString();
-            psi.EnvironmentVariables["NODE_ENV"] = "production";
-
-            webProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
-            webProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("web.log", e.Data); };
-            webProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("web.log", "[ERROR] " + e.Data); };
-
-            webProcess.Start();
-            webProcess.BeginOutputReadLine();
-            webProcess.BeginErrorReadLine();
-            Log("Processo Web iniciado silenciosamente com PID: " + webProcess.Id);
         }
 
         private static string FindNodeExecutable()
@@ -411,6 +645,7 @@ namespace CtrlFarm.Desktop
             {
                 Path.Combine(appRootDir, "bin", "node.exe"),
                 Path.Combine(appRootDir, "bin", "node", "node.exe"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "bin", "node.exe"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "nodejs", "node.exe"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "nodejs", "node.exe"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "node", "node.exe"),
