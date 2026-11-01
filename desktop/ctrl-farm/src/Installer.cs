@@ -777,6 +777,14 @@ namespace CtrlFarm.Installer
                         string dstWebPkg = Path.Combine(targetDir, "apps", "web", "package.json");
                         if (File.Exists(srcWebPkg)) { try { Directory.CreateDirectory(Path.GetDirectoryName(dstWebPkg)); File.Copy(srcWebPkg, dstWebPkg, true); } catch { } }
 
+                        string srcWebServer = Path.Combine(resolvedSourceDir, "apps", "web", "server.js");
+                        string dstWebServer = Path.Combine(targetDir, "apps", "web", "server.js");
+                        if (File.Exists(srcWebServer)) { try { Directory.CreateDirectory(Path.GetDirectoryName(dstWebServer)); File.Copy(srcWebServer, dstWebServer, true); } catch { } }
+
+                        string srcWebConfig = Path.Combine(resolvedSourceDir, "apps", "web", "next.config.mjs");
+                        string dstWebConfig = Path.Combine(targetDir, "apps", "web", "next.config.mjs");
+                        if (File.Exists(srcWebConfig)) { try { Directory.CreateDirectory(Path.GetDirectoryName(dstWebConfig)); File.Copy(srcWebConfig, dstWebConfig, true); } catch { } }
+
                         string srcRootPkg = Path.Combine(resolvedSourceDir, "package.json");
                         string dstRootPkg = Path.Combine(targetDir, "package.json");
                         if (File.Exists(srcRootPkg)) { try { File.Copy(srcRootPkg, dstRootPkg, true); } catch { } }

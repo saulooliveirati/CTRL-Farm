@@ -35,7 +35,10 @@ if errorlevel 1 (
 copy /y desktop\ctrl-farm\dist\CTRL-Farm.exe .\CTRL-Farm.exe >nul
 if exist "%LOCALAPPDATA%\Programs\CTRL-Farm" (
     copy /y desktop\ctrl-farm\dist\CTRL-Farm.exe "%LOCALAPPDATA%\Programs\CTRL-Farm\CTRL-Farm.exe" >nul
-    echo [OK] Atalho instalado em AppData atualizado com sucesso!
+    if not exist "%LOCALAPPDATA%\Programs\CTRL-Farm\apps\web" mkdir "%LOCALAPPDATA%\Programs\CTRL-Farm\apps\web"
+    copy /y apps\web\server.js "%LOCALAPPDATA%\Programs\CTRL-Farm\apps\web\server.js" >nul
+    copy /y apps\web\next.config.mjs "%LOCALAPPDATA%\Programs\CTRL-Farm\apps\web\next.config.mjs" >nul
+    echo [OK] Atalho e modulos instalados em AppData atualizados com sucesso!
 )
 if exist "%LOCALAPPDATA%\CTRL-Farm" (
     copy /y ctrlfarm.config.json "%LOCALAPPDATA%\CTRL-Farm\ctrlfarm.config.json" >nul

@@ -163,10 +163,12 @@ if [ ! -f "$NEXT_BIN" ]; then
   NEXT_BIN="$APP_ROOT/node_modules/next/dist/bin/next"
 fi
 
-if [ -f "$NEXT_BIN" ]; then
-  "$NODE_BIN" "$NEXT_BIN" start "$APP_ROOT/apps/web" -p 3000 -H 127.0.0.1 > "$LOG_DIR/web.log" 2>&1 &
+if [ -f "$APP_ROOT/apps/web/server.js" ]; then
+  "$NODE_BIN" "$APP_ROOT/apps/web/server.js" > "$LOG_DIR/web.log" 2>&1 &
+elif [ -f "$NEXT_BIN" ]; then
+  "$NODE_BIN" "$NEXT_BIN" start -p 3000 -H 0.0.0.0 > "$LOG_DIR/web.log" 2>&1 &
 else
-  "$NODE_BIN" node_modules/.bin/next start "$APP_ROOT/apps/web" -p 3000 -H 127.0.0.1 > "$LOG_DIR/web.log" 2>&1 &
+  "$NODE_BIN" node_modules/.bin/next start -p 3000 -H 0.0.0.0 > "$LOG_DIR/web.log" 2>&1 &
 fi
 WEB_PID=$!
 PIDS_TO_KILL+=($WEB_PID)

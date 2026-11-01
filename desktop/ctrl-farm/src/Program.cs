@@ -341,6 +341,13 @@ namespace CtrlFarm.Desktop
                 string logFile = Path.Combine(logsDir, "launcher.log");
                 string line = string.Format("[{0:yyyy-MM-dd HH:mm:ss}] {1}", DateTime.Now, message);
                 File.AppendAllText(logFile, line + Environment.NewLine);
+
+                if (!string.IsNullOrEmpty(appRootDir) && Directory.Exists(appRootDir))
+                {
+                    string devLogs = Path.Combine(appRootDir, "logs");
+                    if (!Directory.Exists(devLogs)) Directory.CreateDirectory(devLogs);
+                    File.AppendAllText(Path.Combine(devLogs, "launcher.log"), line + Environment.NewLine);
+                }
             }
             catch { }
         }
@@ -594,39 +601,57 @@ namespace CtrlFarm.Desktop
 
                 string webDir = Path.Combine(appRootDir, "apps", "web");
                 string workingDir = SafeWorkingDirectory(webDir, appRootDir, AppDomain.CurrentDomain.BaseDirectory);
+                string nodeExe = FindNodeExecutable();
 
-                string[] candidateNextCli = new string[]
+                string serverJs = Path.Combine(webDir, "server.js");
+                if (!File.Exists(serverJs))
                 {
-                    Path.Combine(webDir, "node_modules", "next", "dist", "bin", "next"),
-                    Path.Combine(appRootDir, "node_modules", "next", "dist", "bin", "next"),
-                    Path.Combine(webDir, "node_modules", ".bin", "next.cmd"),
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "node_modules", "next", "dist", "bin", "next")
-                };
-
-                string foundNextCli = null;
-                foreach (var cand in candidateNextCli)
+                    serverJs = Path.Combine(appRootDir, "server.js");
+                }
+                if (!File.Exists(serverJs))
                 {
-                    if (File.Exists(cand))
-                    {
-                        foundNextCli = cand;
-                        break;
-                    }
+                    serverJs = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "apps", "web", "server.js");
                 }
 
-                string nodeExe = FindNodeExecutable();
                 ProcessStartInfo psi;
 
-                if (foundNextCli != null && foundNextCli.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
+                if (File.Exists(serverJs))
                 {
-                    psi = new ProcessStartInfo("cmd.exe", string.Format("/c \"\"{0}\" start \"{1}\" -p {2} -H 127.0.0.1\"", foundNextCli, webDir, WebPort));
-                }
-                else if (foundNextCli != null)
-                {
-                    psi = new ProcessStartInfo(nodeExe, string.Format("\"{0}\" start \"{1}\" -p {2} -H 127.0.0.1", foundNextCli, webDir, WebPort));
+                    Log("Iniciando Interface Web via server.js nativo: " + serverJs);
+                    psi = new ProcessStartInfo(nodeExe, string.Format("\"{0}\"", serverJs));
                 }
                 else
                 {
-                    psi = new ProcessStartInfo("cmd.exe", string.Format("/c npm --prefix \"{0}\" start -- -p {1} -H 127.0.0.1", webDir, WebPort));
+                    string[] candidateNextCli = new string[]
+                    {
+                        Path.Combine(webDir, "node_modules", "next", "dist", "bin", "next"),
+                        Path.Combine(appRootDir, "node_modules", "next", "dist", "bin", "next"),
+                        Path.Combine(webDir, "node_modules", ".bin", "next.cmd"),
+                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "node_modules", "next", "dist", "bin", "next")
+                    };
+
+                    string foundNextCli = null;
+                    foreach (var cand in candidateNextCli)
+                    {
+                        if (File.Exists(cand))
+                        {
+                            foundNextCli = cand;
+                            break;
+                        }
+                    }
+
+                    if (foundNextCli != null && foundNextCli.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase))
+                    {
+                        psi = new ProcessStartInfo("cmd.exe", string.Format("/c \"\"{0}\" start -p {1} -H 0.0.0.0\"", foundNextCli, WebPort));
+                    }
+                    else if (foundNextCli != null)
+                    {
+                        psi = new ProcessStartInfo(nodeExe, string.Format("\"{0}\" start -p {1} -H 0.0.0.0", foundNextCli, WebPort));
+                    }
+                    else
+                    {
+                        psi = new ProcessStartInfo("cmd.exe", string.Format("/c npm start -- -p {0} -H 0.0.0.0", WebPort));
+                    }
                 }
 
                 psi.WorkingDirectory = workingDir;
@@ -636,6 +661,7 @@ namespace CtrlFarm.Desktop
                 psi.RedirectStandardOutput = true;
                 psi.RedirectStandardError = true;
                 psi.EnvironmentVariables["PORT"] = WebPort.ToString();
+                psi.EnvironmentVariables["HOSTNAME"] = "0.0.0.0";
                 psi.EnvironmentVariables["NODE_ENV"] = "production";
 
                 Log("Executando Next.js Web: " + psi.FileName + " " + psi.Arguments + " em " + workingDir);
@@ -649,38 +675,41 @@ namespace CtrlFarm.Desktop
                 webProcess.BeginErrorReadLine();
                 Log("Processo Web iniciado silenciosamente com PID: " + webProcess.Id);
 
-                // Verificacao rapida de sobrevivencia do processo (fallback se encerrar de imediato)
+                // Verificação de sobrevivência do processo com contingência automática
                 ThreadPool.QueueUserWorkItem(_ =>
                 {
-                    Thread.Sleep(4500);
+                    Thread.Sleep(5000);
                     if (webProcess != null && webProcess.HasExited && !IsPortOpen(WebPort, 1000))
                     {
-                        Log("Aviso: Processo inicial do Next.js encerrou. Tentando fallback via npm start...");
-                        try
+                        Log("Aviso: Processo web encerrou prematuramente. Tentando contingência com server.js...");
+                        if (File.Exists(serverJs))
                         {
-                            ProcessStartInfo fallbackPsi = new ProcessStartInfo("cmd.exe", string.Format("/c npm run start -- -p {0} -H 127.0.0.1", WebPort))
+                            try
                             {
-                                WorkingDirectory = workingDir,
-                                CreateNoWindow = true,
-                                UseShellExecute = false,
-                                WindowStyle = ProcessWindowStyle.Hidden,
-                                RedirectStandardOutput = true,
-                                RedirectStandardError = true
-                            };
-                            fallbackPsi.EnvironmentVariables["PORT"] = WebPort.ToString();
-                            fallbackPsi.EnvironmentVariables["NODE_ENV"] = "production";
-
-                            webProcess = new Process { StartInfo = fallbackPsi, EnableRaisingEvents = true };
-                            webProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("web.log", e.Data); };
-                            webProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("web.log", "[ERROR] " + e.Data); };
-                            webProcess.Start();
-                            webProcess.BeginOutputReadLine();
-                            webProcess.BeginErrorReadLine();
-                            Log("Processo Web de fallback iniciado com PID: " + webProcess.Id);
-                        }
-                        catch (Exception exFall)
-                        {
-                            Log("Erro no fallback do Next.js: " + exFall.Message);
+                                ProcessStartInfo fallbackPsi = new ProcessStartInfo(nodeExe, string.Format("\"{0}\"", serverJs))
+                                {
+                                    WorkingDirectory = workingDir,
+                                    CreateNoWindow = true,
+                                    UseShellExecute = false,
+                                    WindowStyle = ProcessWindowStyle.Hidden,
+                                    RedirectStandardOutput = true,
+                                    RedirectStandardError = true
+                                };
+                                fallbackPsi.EnvironmentVariables["PORT"] = WebPort.ToString();
+                                fallbackPsi.EnvironmentVariables["HOSTNAME"] = "0.0.0.0";
+                                fallbackPsi.EnvironmentVariables["NODE_ENV"] = "production";
+                                webProcess = new Process { StartInfo = fallbackPsi, EnableRaisingEvents = true };
+                                webProcess.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("web.log", e.Data); };
+                                webProcess.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) AppendLog("web.log", "[ERROR] " + e.Data); };
+                                webProcess.Start();
+                                webProcess.BeginOutputReadLine();
+                                webProcess.BeginErrorReadLine();
+                                Log("Processo Web de contingência iniciado com PID: " + webProcess.Id);
+                            }
+                            catch (Exception fex)
+                            {
+                                Log("Erro ao disparar contingência Web: " + fex.Message);
+                            }
                         }
                     }
                 });
@@ -935,18 +964,43 @@ namespace CtrlFarm.Desktop
             bool web = IsPortOpen(WebPort, 600);
             bool cam = IsPortOpen(8890, 600) || IsPortOpen(9998, 600);
 
+            string webDetails = web ? "🟢 Operacional (200 OK)" : "🔴 Offline";
+            if (!web)
+            {
+                try
+                {
+                    string logFile = Path.Combine(logsDir, "web.log");
+                    if (!File.Exists(logFile) && !string.IsNullOrEmpty(appRootDir))
+                    {
+                        logFile = Path.Combine(appRootDir, "logs", "web.log");
+                    }
+                    if (File.Exists(logFile))
+                    {
+                        string[] lines = File.ReadAllLines(logFile);
+                        if (lines.Length > 0)
+                        {
+                            string last = lines[lines.Length - 1].Trim();
+                            if (!string.IsNullOrEmpty(last))
+                            {
+                                webDetails += string.Format(" ({0})", last.Length > 60 ? last.Substring(0, 60) + "..." : last);
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+
             string msg = string.Format(
                 "Status Atual dos Componentes CTRL-Farm:\n\n" +
-                "• Banco de Dados PostgreSQL (Porta 5432): {0}\n" +
-                "• API NestJS & Conexão Cloud (Porta 3001): {1}\n" +
-                "• Interface Web Next.js (Porta 3000): {2}\n" +
-                "• Servidor de Câmeras MediaMTX (Porta 8890): {3}\n\n" +
-                "Arquitetura: Híbrida Local-First com Conexão em Nuvem\n" +
+                "• Banco de Dados PostgreSQL (5432): {0}\n" +
+                "• API NestJS & Licensing (3001): {1}\n" +
+                "• Interface Web Next.js (3000): {2}\n" +
+                "• Servidor de Câmeras MediaMTX (8890): {3}\n\n" +
                 "Pasta de Instalação: {4}\n" +
                 "Pasta de Logs: {5}",
                 db ? "🟢 Conectado" : "🔴 Não acessível",
                 api ? "🟢 Operacional (200 OK)" : "🔴 Offline",
-                web ? "🟢 Operacional (200 OK)" : "🔴 Offline",
+                webDetails,
                 cam ? "🟢 Transmissão Ativa" : "⚪ Em espera",
                 appRootDir,
                 logsDir);
