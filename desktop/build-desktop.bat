@@ -19,6 +19,7 @@ echo Finalizando processos ativos do CTRL-Farm para liberar os arquivos...
 taskkill /F /IM CTRL-Farm.exe >nul 2>&1
 taskkill /F /IM CTRL-Farm-Setup.exe >nul 2>&1
 taskkill /F /IM Uninstall.exe >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| find ":3000 "') do taskkill /f /pid %%a >nul 2>&1
 timeout /t 1 /nobreak >nul 2>&1
 
 cd /d "%~dp0\.."
@@ -38,6 +39,7 @@ if exist "%LOCALAPPDATA%\Programs\CTRL-Farm" (
     if not exist "%LOCALAPPDATA%\Programs\CTRL-Farm\apps\web" mkdir "%LOCALAPPDATA%\Programs\CTRL-Farm\apps\web"
     copy /y apps\web\server.js "%LOCALAPPDATA%\Programs\CTRL-Farm\apps\web\server.js" >nul
     copy /y apps\web\next.config.mjs "%LOCALAPPDATA%\Programs\CTRL-Farm\apps\web\next.config.mjs" >nul
+    copy /y apps\web\next.config.ts "%LOCALAPPDATA%\Programs\CTRL-Farm\apps\web\next.config.ts" >nul
     echo [OK] Atalho e modulos instalados em AppData atualizados com sucesso!
 )
 if exist "%LOCALAPPDATA%\CTRL-Farm" (

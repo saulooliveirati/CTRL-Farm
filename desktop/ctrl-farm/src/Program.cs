@@ -663,6 +663,7 @@ namespace CtrlFarm.Desktop
                 psi.EnvironmentVariables["PORT"] = WebPort.ToString();
                 psi.EnvironmentVariables["HOSTNAME"] = "0.0.0.0";
                 psi.EnvironmentVariables["NODE_ENV"] = "production";
+                psi.EnvironmentVariables["NODE_PATH"] = Path.Combine(webDir, "node_modules");
 
                 Log("Executando Next.js Web: " + psi.FileName + " " + psi.Arguments + " em " + workingDir);
 
