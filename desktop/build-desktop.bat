@@ -27,7 +27,19 @@ cd /d "%~dp0\.."
 if not exist "desktop\ctrl-farm\dist" mkdir "desktop\ctrl-farm\dist"
 if not exist "docs\downloads" mkdir "docs\downloads"
 
-echo 1. Compilando CTRL-Farm.exe (Modo Silencioso /target:winexe)...
+echo.
+echo =====================================================================
+echo 1. Compilando e Atualizando Frontend Web (Next.js)...
+echo =====================================================================
+call npm --prefix apps\web run build
+if errorlevel 1 (
+    echo [AVISO] Falha ao compilar com npm, tentando com pnpm...
+    call pnpm --filter web build
+)
+echo [OK] Frontend Web atualizado com sucesso!
+echo.
+
+echo 2. Compilando CTRL-Farm.exe (Modo Silencioso /target:winexe)...
 "%CSC%" /nologo /target:winexe /optimize+ /out:desktop\ctrl-farm\dist\CTRL-Farm.exe /win32icon:desktop\ctrl-farm\icon.ico desktop\ctrl-farm\src\Program.cs
 if errorlevel 1 (
     echo [ERRO] Falha ao compilar CTRL-Farm.exe
@@ -40,6 +52,9 @@ if exist "%LOCALAPPDATA%\Programs\CTRL-Farm" (
     copy /y apps\web\server.js "%LOCALAPPDATA%\Programs\CTRL-Farm\apps\web\server.js" >nul
     copy /y apps\web\next.config.mjs "%LOCALAPPDATA%\Programs\CTRL-Farm\apps\web\next.config.mjs" >nul
     copy /y apps\web\next.config.ts "%LOCALAPPDATA%\Programs\CTRL-Farm\apps\web\next.config.ts" >nul
+    if exist "apps\web\.next" (
+        xcopy /s /e /y /q "apps\web\.next" "%LOCALAPPDATA%\Programs\CTRL-Farm\apps\web\.next\" >nul 2>&1
+    )
     echo [OK] Atalho e modulos instalados em AppData atualizados com sucesso!
 )
 if exist "%LOCALAPPDATA%\CTRL-Farm" (
@@ -51,7 +66,7 @@ if exist "%LOCALAPPDATA%\Programs\CTRL-Farm" (
 echo [OK] CTRL-Farm.exe gerado com sucesso!
 
 echo.
-echo 2. Compilando Uninstall.exe (Desinstalador Grafico Nativo WinForms)...
+echo 3. Compilando Uninstall.exe (Desinstalador Grafico Nativo WinForms)...
 "%CSC%" /nologo /target:winexe /optimize+ /out:desktop\ctrl-farm\dist\Uninstall.exe /win32icon:desktop\ctrl-farm\icon.ico desktop\ctrl-farm\src\Uninstaller.cs
 if errorlevel 1 (
     echo [ERRO] Falha ao compilar Uninstall.exe
@@ -64,7 +79,7 @@ if exist "%LOCALAPPDATA%\Programs\CTRL-Farm" (
 echo [OK] Uninstall.exe gerado com sucesso!
 
 echo.
-echo 3. Compilando CTRL-Farm-Setup.exe (Instalador Autocontido de 1 Clique)...
+echo 4. Compilando CTRL-Farm-Setup.exe (Instalador Autocontido de 1 Clique)...
 "%CSC%" /nologo /target:winexe /optimize+ /out:desktop\ctrl-farm\dist\CTRL-Farm-Setup.exe /win32icon:desktop\ctrl-farm\icon.ico /resource:desktop\ctrl-farm\dist\CTRL-Farm.exe,CtrlFarm.exe /resource:desktop\ctrl-farm\dist\Uninstall.exe,Uninstall.exe /resource:desktop\ctrl-farm\icon.ico,icon.ico desktop\ctrl-farm\src\Installer.cs
 if errorlevel 1 (
     echo [ERRO] Falha ao compilar CTRL-Farm-Setup.exe
