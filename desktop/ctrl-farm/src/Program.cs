@@ -1097,24 +1097,21 @@ namespace CtrlFarm.Desktop
 
     public class SplashForm : Form
     {
-        private ProgressBar progressBar;
-        private Label lblStatus;
-        private Label lblTitle;
-        private Label lblSubtitle;
+        private int currentProgress = 15;
+        private string currentStatus = "Inicializando serviços locais...";
         private Icon appIcon;
 
         public SplashForm()
         {
             this.FormBorderStyle = FormBorderStyle.None;
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Size = new Size(540, 280);
+            this.Size = new Size(680, 380);
             this.BackColor = Color.FromArgb(10, 15, 27); // #0a0f1b Dark Industrial
             this.ShowInTaskbar = true;
             this.TopMost = true;
 
-            this.SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.DoubleBuffer, true);
+            this.SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.DoubleBuffer | ControlStyles.OptimizedDoubleBuffer, true);
 
-            // Tenta carregar ícone oficial
             try
             {
                 string iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "icon.ico");
@@ -1124,102 +1121,272 @@ namespace CtrlFarm.Desktop
                 }
             }
             catch { }
-
-            lblTitle = new Label
-            {
-                Text = "CTRL-Farm",
-                Font = new Font("Segoe UI", 24, FontStyle.Bold),
-                ForeColor = Color.FromArgb(32, 201, 151), // #20c997 Emerald Neon
-                Location = new Point(80, 28),
-                AutoSize = true
-            };
-            this.Controls.Add(lblTitle);
-
-            lblSubtitle = new Label
-            {
-                Text = "Plataforma Industrial de Impressão 3D • Arquitetura Híbrida Local-First",
-                Font = new Font("Segoe UI", 9.5f, FontStyle.Regular),
-                ForeColor = Color.FromArgb(148, 163, 184), // Slate-400
-                Location = new Point(82, 74),
-                AutoSize = true
-            };
-            this.Controls.Add(lblSubtitle);
-
-            progressBar = new ProgressBar
-            {
-                Location = new Point(32, 138),
-                Size = new Size(476, 12),
-                Minimum = 0,
-                Maximum = 100,
-                Value = 10,
-                Style = ProgressBarStyle.Continuous
-            };
-            this.Controls.Add(progressBar);
-
-            lblStatus = new Label
-            {
-                Text = "Inicializando plataforma e serviços locais...",
-                Font = new Font("Segoe UI", 9, FontStyle.Regular),
-                ForeColor = Color.FromArgb(203, 213, 225),
-                Location = new Point(32, 164),
-                Size = new Size(476, 44)
-            };
-            this.Controls.Add(lblStatus);
-
-            Label lblFooter = new Label
-            {
-                Text = "Inicialização Silenciosa Nativa • Portas 3000 / 3001 • Criptografia RSA / Firebase",
-                Font = new Font("Segoe UI", 8, FontStyle.Italic),
-                ForeColor = Color.FromArgb(100, 116, 139),
-                Location = new Point(32, 235),
-                AutoSize = true
-            };
-            this.Controls.Add(lblFooter);
-
-            this.Paint += (s, e) =>
-            {
-                Graphics g = e.Graphics;
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-
-                // Borda industrial com canto sutil
-                using (var pen = new Pen(Color.FromArgb(38, 50, 70), 2)) // #263246
-                {
-                    g.DrawRectangle(pen, 1, 1, this.Width - 2, this.Height - 2);
-                }
-
-                // Desenha o badge de ícone no canto superior esquerdo
-                if (appIcon != null)
-                {
-                    g.DrawIcon(appIcon, new Rectangle(30, 28, 42, 42));
-                }
-                else
-                {
-                    using (var brush = new SolidBrush(Color.FromArgb(16, 24, 39)))
-                    using (var borderPen = new Pen(Color.FromArgb(32, 201, 151), 1.5f))
-                    {
-                        var rect = new Rectangle(30, 28, 42, 42);
-                        g.FillRectangle(brush, rect);
-                        g.DrawRectangle(borderPen, rect);
-                        using (var font = new Font("Segoe UI Emoji", 16, FontStyle.Regular))
-                        {
-                            g.DrawString("🖨️", font, Brushes.White, 35, 33);
-                        }
-                    }
-                }
-            };
         }
 
         public void SetProgress(string status, int progress)
         {
-            lblStatus.Text = status;
-            progressBar.Value = Math.Min(100, Math.Max(0, progress));
-            this.Refresh();
+            currentStatus = status;
+            currentProgress = Math.Min(100, Math.Max(0, progress));
+            this.Invalidate();
         }
 
         public void SetStatus(string status)
         {
-            lblStatus.Text = status;
-            this.Refresh();
+            currentStatus = status;
+            this.Invalidate();
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+            int w = this.Width;
+            int h = this.Height;
+
+            // 1. Fundo Gradiente Industrial Profundo
+            using (var bgBrush = new LinearGradientBrush(new Rectangle(0, 0, w, h), Color.FromArgb(12, 18, 32), Color.FromArgb(8, 12, 22), 90f))
+            {
+                g.FillRectangle(bgBrush, 0, 0, w, h);
+            }
+
+            // 2. Moldura e Cantos Decorativos Estilo Cyber HUD (┌ ┐ └ ┘)
+            using (var framePen = new Pen(Color.FromArgb(30, 41, 59), 1.5f)) // #1e293b
+            {
+                g.DrawRectangle(framePen, 8, 8, w - 16, h - 16);
+            }
+
+            using (var cornerPen = new Pen(Color.FromArgb(32, 201, 151), 2.5f)) // #20c997
+            {
+                // Top-Left
+                g.DrawLine(cornerPen, 8, 28, 8, 8);
+                g.DrawLine(cornerPen, 8, 8, 28, 8);
+                // Top-Right
+                g.DrawLine(cornerPen, w - 28, 8, w - 8, 8);
+                g.DrawLine(cornerPen, w - 8, 8, w - 8, 28);
+                // Bottom-Left
+                g.DrawLine(cornerPen, 8, h - 28, 8, h - 8);
+                g.DrawLine(cornerPen, 8, h - 8, 28, h - 8);
+                // Bottom-Right
+                g.DrawLine(cornerPen, w - 28, h - 8, w - 8, h - 8);
+                g.DrawLine(cornerPen, w - 8, h - 8, w - 8, h - 28);
+            }
+
+            // Controles decorativos no topo direito (Ranhuras ventilação, minimizar e fechar)
+            using (var ventPen = new Pen(Color.FromArgb(51, 65, 85), 1.5f))
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    g.DrawLine(ventPen, w - 110 + (i * 6), 22, w - 106 + (i * 6), 16);
+                }
+            }
+            using (var ctrlPen = new Pen(Color.FromArgb(100, 116, 139), 1.8f))
+            {
+                // Minimize: —
+                g.DrawLine(ctrlPen, w - 62, 20, w - 50, 20);
+                // Close: ✕
+                g.DrawLine(ctrlPen, w - 34, 15, w - 24, 25);
+                g.DrawLine(ctrlPen, w - 24, 15, w - 34, 25);
+            }
+
+            // 3. Grid Isométrico e Ícone da Impressora 3D Holográfica
+            int iconX = 40;
+            int iconY = 38;
+            int iconSize = 74;
+
+            // Grid holográfico de fundo
+            using (var gridPen = new Pen(Color.FromArgb(18, 45, 45), 1f))
+            {
+                for (int gx = 0; gx <= iconSize; gx += 12)
+                {
+                    g.DrawLine(gridPen, iconX + gx, iconY, iconX + gx, iconY + iconSize);
+                }
+                for (int gy = 0; gy <= iconSize; gy += 12)
+                {
+                    g.DrawLine(gridPen, iconX, iconY + gy, iconX + iconSize, iconY + gy);
+                }
+            }
+
+            // Moldura holográfica ao redor da impressora 3D
+            using (var iconBorderPen = new Pen(Color.FromArgb(32, 201, 151), 1.2f))
+            {
+                g.DrawRectangle(iconBorderPen, iconX, iconY, iconSize, iconSize);
+            }
+
+            // Desenho vetorial da Impressora 3D isométrica em neon
+            using (var printerPen = new Pen(Color.FromArgb(32, 201, 151), 2.2f))
+            using (var partPen = new Pen(Color.FromArgb(56, 189, 248), 1.8f))
+            using (var glowBrush = new SolidBrush(Color.FromArgb(32, 201, 151)))
+            {
+                printerPen.StartCap = LineCap.Round;
+                printerPen.EndCap = LineCap.Round;
+
+                // Cubo isométrico externo da impressora
+                // Topo
+                Point[] topFace = new Point[]
+                {
+                    new Point(iconX + 37, iconY + 12),
+                    new Point(iconX + 60, iconY + 23),
+                    new Point(iconX + 37, iconY + 34),
+                    new Point(iconX + 14, iconY + 23)
+                };
+                g.DrawPolygon(printerPen, topFace);
+
+                // Pilares verticais
+                g.DrawLine(printerPen, iconX + 14, iconY + 23, iconX + 14, iconY + 54);
+                g.DrawLine(printerPen, iconX + 60, iconY + 23, iconX + 60, iconY + 54);
+                g.DrawLine(printerPen, iconX + 37, iconY + 34, iconX + 37, iconY + 65);
+
+                // Base inferior
+                g.DrawLine(printerPen, iconX + 14, iconY + 54, iconX + 37, iconY + 65);
+                g.DrawLine(printerPen, iconX + 37, iconY + 65, iconX + 60, iconY + 54);
+
+                // Eixo X/Y e Cabeçote de Impressão (Extrusora)
+                g.DrawLine(partPen, iconX + 25, iconY + 29, iconX + 49, iconY + 40);
+                g.FillEllipse(glowBrush, iconX + 34, iconY + 31, 7, 7);
+
+                // Peça sendo impressa na mesa (bloco neon)
+                Point[] piece = new Point[]
+                {
+                    new Point(iconX + 37, iconY + 45),
+                    new Point(iconX + 44, iconY + 49),
+                    new Point(iconX + 37, iconY + 53),
+                    new Point(iconX + 30, iconY + 49)
+                };
+                g.DrawPolygon(partPen, piece);
+            }
+
+            // 4. Tipografia do Cabeçalho
+            int textX = iconX + iconSize + 22;
+
+            using (var titleFont = new Font("Segoe UI", 28, FontStyle.Bold))
+            using (var titleBrush = new SolidBrush(Color.FromArgb(32, 201, 151))) // #20c997
+            {
+                g.DrawString("CTRL+Farm", titleFont, titleBrush, textX, iconY - 4);
+            }
+
+            using (var subFont = new Font("Segoe UI", 9.5f, FontStyle.Regular))
+            using (var subBrush = new SolidBrush(Color.FromArgb(148, 163, 184))) // #94a3b8
+            {
+                g.DrawString("Plataforma Industrial de Impressão 3D • Gestão Integrada v1.0.0-Beta", subFont, subBrush, textX + 2, iconY + 48);
+            }
+
+            // 5. Barra de Progresso Futurista (Pill com Halo Neon)
+            int barX = 40;
+            int barY = 175;
+            int barW = w - 80;
+            int barH = 20;
+
+            // Halo / Glow suave externo da barra
+            using (var glowPen = new Pen(Color.FromArgb(35, 32, 201, 151), 6f))
+            using (var barPath = GetRoundedRectPath(new Rectangle(barX, barY, barW, barH), 10))
+            {
+                g.DrawPath(glowPen, barPath);
+            }
+
+            // Fundo escuro da barra
+            using (var barBgBrush = new SolidBrush(Color.FromArgb(15, 23, 42))) // #0f172a
+            using (var barBorderPen = new Pen(Color.FromArgb(30, 58, 70), 1.5f))
+            using (var barPath = GetRoundedRectPath(new Rectangle(barX, barY, barW, barH), 10))
+            {
+                g.FillPath(barBgBrush, barPath);
+                g.DrawPath(barBorderPen, barPath);
+            }
+
+            // Preenchimento do progresso em gradiente neon
+            int fillW = Math.Max(16, (int)((barW - 4) * (currentProgress / 100.0)));
+            using (var fillBrush = new LinearGradientBrush(new Rectangle(barX + 2, barY + 2, fillW, barH - 4), Color.FromArgb(32, 201, 151), Color.FromArgb(74, 222, 128), 0f))
+            using (var fillPath = GetRoundedRectPath(new Rectangle(barX + 2, barY + 2, fillW, barH - 4), 8))
+            {
+                g.FillPath(fillBrush, fillPath);
+            }
+
+            // Ponto de luz brilhante na ponta do progresso
+            if (currentProgress > 4)
+            {
+                using (var tipBrush = new SolidBrush(Color.FromArgb(240, 253, 250)))
+                {
+                    g.FillEllipse(tipBrush, barX + fillW - 8, barY + 5, 8, 8);
+                }
+            }
+
+            // Badge Flutuante de Porcentagem (ex: "84%")
+            int badgeW = 48;
+            int badgeH = 22;
+            int badgeX = Math.Min(barX + barW - badgeW, Math.Max(barX + 4, barX + fillW - (badgeW / 2)));
+            int badgeY = barY - 28;
+
+            using (var badgeBg = new SolidBrush(Color.FromArgb(30, 41, 59))) // #1e293b
+            using (var badgeBorder = new Pen(Color.FromArgb(51, 65, 85), 1.2f))
+            using (var badgePath = GetRoundedRectPath(new Rectangle(badgeX, badgeY, badgeW, badgeH), 8))
+            {
+                g.FillPath(badgeBg, badgePath);
+                g.DrawPath(badgeBorder, badgePath);
+            }
+
+            using (var badgeFont = new Font("Segoe UI", 8.5f, FontStyle.Bold))
+            using (var badgeTextBrush = new SolidBrush(Color.FromArgb(203, 213, 225)))
+            {
+                string pctText = currentProgress + "%";
+                SizeF pctSize = g.MeasureString(pctText, badgeFont);
+                g.DrawString(pctText, badgeFont, badgeTextBrush, badgeX + ((badgeW - pctSize.Width) / 2), badgeY + ((badgeH - pctSize.Height) / 2));
+            }
+
+            // 6. Mensagem Dinâmica Centralizada
+            using (var statusFont = new Font("Segoe UI", 12f, FontStyle.Regular))
+            using (var statusBrush = new SolidBrush(Color.FromArgb(203, 213, 225))) // #cbd5e1
+            {
+                SizeF statusSize = g.MeasureString(currentStatus, statusFont);
+                g.DrawString(currentStatus, statusFont, statusBrush, (w - statusSize.Width) / 2, barY + 36);
+            }
+
+            // 7. Cards de Status Inferiores (3 Pílulas Horizontais)
+            int cardY = h - 68;
+            int cardH = 38;
+            int cardW = 186;
+            int spacing = 18;
+            int startX = (w - (3 * cardW + 2 * spacing)) / 2;
+
+            DrawStatusCard(g, startX, cardY, cardW, cardH, "🗄️", "Banco de Dados:", "Pronto", Color.FromArgb(32, 201, 151));
+            DrawStatusCard(g, startX + cardW + spacing, cardY, cardW, cardH, "📹", "Streaming de Câmeras:", "Ativo", Color.FromArgb(32, 201, 151));
+            DrawStatusCard(g, startX + 2 * (cardW + spacing), cardY, cardW, cardH, "🔗", "Portas:", "3000 / 3001", Color.FromArgb(56, 189, 248));
+        }
+
+        private void DrawStatusCard(Graphics g, int x, int y, int w, int h, string icon, string label, string val, Color valColor)
+        {
+            using (var cardBg = new SolidBrush(Color.FromArgb(16, 24, 42))) // #10182a
+            using (var cardBorder = new Pen(Color.FromArgb(30, 45, 68), 1.2f))
+            using (var path = GetRoundedRectPath(new Rectangle(x, y, w, h), 8))
+            {
+                g.FillPath(cardBg, path);
+                g.DrawPath(cardBorder, path);
+            }
+
+            using (var iconFont = new Font("Segoe UI Emoji", 10, FontStyle.Regular))
+            using (var labelFont = new Font("Segoe UI", 8.5f, FontStyle.Regular))
+            using (var valFont = new Font("Segoe UI", 8.5f, FontStyle.Bold))
+            using (var labelBrush = new SolidBrush(Color.FromArgb(148, 163, 184)))
+            using (var valBrush = new SolidBrush(valColor))
+            {
+                g.DrawString(icon, iconFont, Brushes.White, x + 8, y + 8);
+                g.DrawString(label, labelFont, labelBrush, x + 30, y + 10);
+                SizeF labelSize = g.MeasureString(label, labelFont);
+                g.DrawString(val, valFont, valBrush, x + 30 + labelSize.Width - 2, y + 10);
+            }
+        }
+
+        private static GraphicsPath GetRoundedRectPath(Rectangle rect, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            int d = radius * 2;
+            path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+            path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+            path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
         }
     }
 }
