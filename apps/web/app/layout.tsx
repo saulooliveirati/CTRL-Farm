@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { LanguageProvider } from "@/contexts/language-context";
 
 export const metadata: Metadata = {
   title: "CTRL+Farm",
@@ -14,7 +15,9 @@ export default function RootLayout({
   // Extensões como o LanguageTool podem adicionar atributos ao elemento raiz antes da hidratação.
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body>{children}</body>
+      <body>
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }

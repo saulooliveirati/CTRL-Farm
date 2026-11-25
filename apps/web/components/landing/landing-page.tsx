@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useLanguage } from "@/contexts/language-context";
+import { LanguageSelector } from "@/components/layout/language-selector";
 
 export function LandingPage() {
+  const { t } = useLanguage();
   const [detectedOs, setDetectedOs] = useState<"windows" | "mac" | "other">("other");
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
@@ -62,29 +65,30 @@ export function LandingPage() {
           {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-8">
             <a href="#recursos" className="text-sm font-medium text-slate-300 hover:text-[#20c997] transition">
-              Recursos
+              {t("nav.features")}
             </a>
             <a href="#monitoramento" className="text-sm font-medium text-slate-300 hover:text-[#20c997] transition">
-              Monitoramento
+              {t("nav.monitoring")}
             </a>
             <a href="#downloads" className="text-sm font-medium text-slate-300 hover:text-[#20c997] transition">
-              Downloads
+              {t("nav.downloads")}
             </a>
           </nav>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-3">
+          {/* Action Buttons & Language Selector */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <LanguageSelector />
             <Link
               href="/login"
-              className="rounded-xl border border-[#263246] bg-[#0d1527] px-4 py-2 text-xs sm:text-sm font-semibold text-slate-200 hover:border-slate-600 hover:text-white transition shadow-sm"
+              className="rounded-xl border border-[#263246] bg-[#0d1527] px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-slate-200 hover:border-slate-600 hover:text-white transition shadow-sm"
             >
-              Acessar o Sistema
+              {t("nav.access")}
             </Link>
             <Link
               href="/register"
-              className="rounded-xl bg-[#20c997] px-4 py-2 text-xs sm:text-sm font-bold text-slate-950 shadow-md shadow-emerald-950/40 hover:brightness-110 transition active:scale-95"
+              className="rounded-xl bg-[#20c997] px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold text-slate-950 shadow-md shadow-emerald-950/40 hover:brightness-110 transition active:scale-95"
             >
-              Cadastre-se
+              {t("nav.signup")}
             </Link>
           </div>
 
@@ -101,15 +105,15 @@ export function LandingPage() {
           
           {/* Título Principal em 2 Linhas */}
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl leading-[1.15]">
-            A Plataforma Completa para <br />
+            {t("hero.title1")} <br />
             <span className="text-[#20c997]">
-              Fazendas de Impressão 3D
+              {t("hero.title2")}
             </span>
           </h1>
 
           {/* Subtítulo */}
           <p className="mx-auto mt-6 max-w-2xl text-sm sm:text-base text-slate-400 leading-relaxed font-normal">
-            Monitore, gerencie e otimize sua operação 3D em tempo real, com telemetria avançada, controle de filamentos e automação inteligente.
+            {t("hero.subtitle")}
           </p>
 
           {/* Botões de Ação do Hero */}
@@ -118,13 +122,13 @@ export function LandingPage() {
               href="/register"
               className="inline-flex items-center justify-center rounded-full bg-[#20c997] px-8 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-950/60 hover:brightness-110 transition active:scale-95"
             >
-              Cadastre-se Grátis
+              {t("hero.ctaPrimary")}
             </Link>
             <Link
               href="/login"
               className="inline-flex items-center justify-center gap-2 rounded-full border border-[#263246] bg-[#0d1629]/80 px-8 py-3.5 text-sm font-semibold text-white shadow-sm hover:border-slate-600 transition"
             >
-              <span>Acessar o Sistema</span>
+              <span>{t("hero.ctaSecondary")}</span>
               <span>→</span>
             </Link>
           </div>
@@ -136,7 +140,7 @@ export function LandingPage() {
               className="inline-flex items-center gap-2 rounded-full border border-[#1e293b] bg-[#0c1425]/80 px-5 py-2 text-xs text-slate-300 hover:border-[#20c997]/50 hover:text-white transition shadow-sm"
             >
               <span>💻</span>
-              <span>Aplicativo Desktop para Windows (.exe) e macOS (.dmg)</span>
+              <span>{t("hero.desktopBadge")}</span>
             </a>
           </div>
 
@@ -321,13 +325,13 @@ export function LandingPage() {
           
           <div className="text-center max-w-3xl mx-auto mb-12">
             <span className="rounded-full border border-emerald-500/30 bg-emerald-950/40 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-[#20c997]">
-              Instaladores Oficiais
+              {t("nav.downloads")}
             </span>
             <h2 className="mt-4 text-2xl font-extrabold tracking-tight text-white sm:text-4xl">
-              Baixe o CTRL-Farm no seu Computador
+              {t("downloads.title")}
             </h2>
             <p className="mt-3 text-sm text-slate-400">
-              Programa desktop comercial autônomo com inicialização silenciosa (zero terminal), atalho na Área de Trabalho e arquitetura Local-First.
+              {t("downloads.subtitle")}
             </p>
           </div>
 
@@ -343,7 +347,7 @@ export function LandingPage() {
             >
               {detectedOs === "windows" && (
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-1 text-[11px] font-extrabold uppercase tracking-wider text-slate-950 shadow-lg">
-                  ✨ Instalador Recomendado para seu PC
+                  ✨ {t("downloads.recommended")} (Windows)
                 </div>
               )}
 
@@ -359,9 +363,9 @@ export function LandingPage() {
                   </span>
                 </div>
 
-                <h3 className="mt-6 text-xl font-bold text-white">CTRL-Farm para Windows</h3>
+                <h3 className="mt-6 text-xl font-bold text-white">{t("downloads.winTitle")}</h3>
                 <p className="mt-2 text-xs text-slate-400 leading-relaxed">
-                  Instalador oficial autocontido de 1 clique para Windows 10 e 11. Cria o atalho oficial na Área de Trabalho com ícone, registra o desinstalador nativo e inicializa silenciosamente sem janelas de terminal.
+                  {t("downloads.winDesc")}
                 </p>
 
                 <div className="mt-5 space-y-2 text-xs text-slate-300 border-t border-slate-800/80 pt-4">
@@ -393,7 +397,7 @@ export function LandingPage() {
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/>
                   </svg>
-                  <span>Baixar CTRL-Farm para Windows (.exe)</span>
+                  <span>{t("downloads.winBtn")}</span>
                 </a>
 
                 <button
@@ -401,7 +405,7 @@ export function LandingPage() {
                   onClick={() => copyToClipboard(WINDOWS_URL, "win")}
                   className="w-full text-center text-[11px] text-slate-500 hover:text-slate-300 transition"
                 >
-                  {copiedLink === "win" ? "✓ Link copiado para a área de transferência!" : "Copiar link direto (.exe)"}
+                  {copiedLink === "win" ? t("downloads.copied") : t("downloads.copyLink") + " (.exe)"}
                 </button>
               </div>
             </div>
@@ -416,7 +420,7 @@ export function LandingPage() {
             >
               {detectedOs === "mac" && (
                 <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#20c997] to-teal-500 px-4 py-1 text-[11px] font-extrabold uppercase tracking-wider text-slate-950 shadow-lg">
-                  ✨ Instalador Recomendado para seu Mac
+                  ✨ {t("downloads.recommended")} (Mac)
                 </div>
               )}
 
@@ -432,9 +436,9 @@ export function LandingPage() {
                   </span>
                 </div>
 
-                <h3 className="mt-6 text-xl font-bold text-white">CTRL-Farm para macOS</h3>
+                <h3 className="mt-6 text-xl font-bold text-white">{t("downloads.macTitle")}</h3>
                 <p className="mt-2 text-xs text-slate-400 leading-relaxed">
-                  Imagem de Disco Apple (.dmg) com bundle `.app` nativo e atalho tradicional de arrastar para `/Applications`. Suporte universal otimizado para Apple Silicon (M1/M2/M3/M4) e Intel com inicialização silenciosa.
+                  {t("downloads.macDesc")}
                 </p>
 
                 <div className="mt-5 space-y-2 text-xs text-slate-300 border-t border-slate-800/80 pt-4">
@@ -466,7 +470,7 @@ export function LandingPage() {
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.42c.62-.75 1.04-1.8 1.01-2.85-.9.04-1.98.6-2.62 1.34-.57.65-1.07 1.7-1.02 2.76.99.08 2.01-.5 2.63-1.25z"/>
                   </svg>
-                  <span>Baixar CTRL-Farm para macOS (.dmg)</span>
+                  <span>{t("downloads.macBtn")}</span>
                 </a>
 
                 <button
@@ -474,7 +478,7 @@ export function LandingPage() {
                   onClick={() => copyToClipboard(MAC_URL, "mac")}
                   className="w-full text-center text-[11px] text-slate-500 hover:text-slate-300 transition"
                 >
-                  {copiedLink === "mac" ? "✓ Link copiado para a área de transferência!" : "Copiar link direto (.dmg)"}
+                  {copiedLink === "mac" ? t("downloads.copied") : t("downloads.copyLink") + " (.dmg)"}
                 </button>
               </div>
             </div>

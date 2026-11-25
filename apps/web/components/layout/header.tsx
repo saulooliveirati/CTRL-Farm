@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Key, ShieldAlert, Smartphone } from "lucide-react";
 import type { PublicUser } from "@/lib/auth-types";
 import { useLicensing } from "@/contexts/licensing-context";
+import { LanguageSelector } from "./language-selector";
 import { LogoutButton } from "./logout-button";
 
 const titles: Record<string, string> = {
@@ -113,6 +114,9 @@ export function Header({
             <span className="hidden sm:inline">Mobile</span>
           </Link>
         )}
+
+        {/* Seletor Global de Idioma */}
+        <LanguageSelector compact />
 
         <Link
           href="/profile"

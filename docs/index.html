@@ -90,17 +90,67 @@
 
       <!-- Navigation Links -->
       <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
-        <a href="#recursos" class="hover:text-[#20c997] transition">Recursos</a>
-        <a href="#monitoramento" class="hover:text-[#20c997] transition">Monitoramento</a>
-        <a href="#downloads" class="hover:text-[#20c997] transition">Downloads</a>
+        <a href="#recursos" class="hover:text-[#20c997] transition" data-i18n="nav.features">Recursos</a>
+        <a href="#monitoramento" class="hover:text-[#20c997] transition" data-i18n="nav.monitoring">Monitoramento</a>
+        <a href="#downloads" class="hover:text-[#20c997] transition" data-i18n="nav.downloads">Downloads</a>
       </nav>
 
-      <!-- CTA Buttons -->
-      <div class="flex items-center gap-3">
-        <a href="#downloads" class="rounded-xl border border-[#263246] bg-[#0d1527] px-4 py-2 text-xs sm:text-sm font-semibold text-slate-200 hover:border-slate-600 hover:text-white transition shadow-sm">
+      <!-- CTA Buttons & Language Selector -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Language Selector Dropdown -->
+        <div class="relative" id="lang-dropdown-container">
+          <button
+            type="button"
+            id="lang-selector-btn"
+            onclick="toggleLangDropdown()"
+            aria-haspopup="true"
+            aria-expanded="false"
+            title="Alterar Idioma / Change Language"
+            class="flex items-center gap-1.5 sm:gap-2 rounded-xl border border-[#263246] bg-[#0c1425]/90 px-2.5 sm:px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-[#20c997]/50 hover:text-white shadow-sm"
+          >
+            <span id="current-lang-flag" class="text-sm">🇧🇷</span>
+            <span id="current-lang-label" class="hidden sm:inline font-mono tracking-wide">PT-BR</span>
+            <svg class="w-3 h-3 text-slate-400 transition-transform duration-200" id="lang-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          
+          <div
+            id="lang-dropdown-menu"
+            class="hidden absolute right-0 z-50 mt-2 w-48 origin-top-right rounded-2xl border border-[#263246] bg-[#0c1322]/98 p-1.5 shadow-2xl backdrop-blur-xl"
+          >
+            <div class="px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800/80 mb-1">
+              Idioma / Language
+            </div>
+            <div class="space-y-0.5" id="lang-options-list">
+              <button onclick="selectLanguage('pt-BR')" class="lang-opt-btn flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-xs font-medium transition text-slate-300 hover:bg-slate-800/60 hover:text-white" data-lang="pt-BR">
+                <span class="flex items-center gap-2"><span>🇧🇷</span> Português (Brasil)</span>
+                <span class="check-icon text-[#20c997]">✓</span>
+              </button>
+              <button onclick="selectLanguage('en')" class="lang-opt-btn flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-xs font-medium transition text-slate-300 hover:bg-slate-800/60 hover:text-white" data-lang="en">
+                <span class="flex items-center gap-2"><span>🇺🇸</span> English (US)</span>
+                <span class="check-icon text-[#20c997] hidden">✓</span>
+              </button>
+              <button onclick="selectLanguage('es')" class="lang-opt-btn flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-xs font-medium transition text-slate-300 hover:bg-slate-800/60 hover:text-white" data-lang="es">
+                <span class="flex items-center gap-2"><span>🇪🇸</span> Español</span>
+                <span class="check-icon text-[#20c997] hidden">✓</span>
+              </button>
+              <button onclick="selectLanguage('fr')" class="lang-opt-btn flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-xs font-medium transition text-slate-300 hover:bg-slate-800/60 hover:text-white" data-lang="fr">
+                <span class="flex items-center gap-2"><span>🇫🇷</span> Français</span>
+                <span class="check-icon text-[#20c997] hidden">✓</span>
+              </button>
+              <button onclick="selectLanguage('de')" class="lang-opt-btn flex w-full items-center justify-between rounded-xl px-2.5 py-2 text-xs font-medium transition text-slate-300 hover:bg-slate-800/60 hover:text-white" data-lang="de">
+                <span class="flex items-center gap-2"><span>🇩🇪</span> Deutsch</span>
+                <span class="check-icon text-[#20c997] hidden">✓</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <a href="#downloads" class="rounded-xl border border-[#263246] bg-[#0d1527] px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-slate-200 hover:border-slate-600 hover:text-white transition shadow-sm" data-i18n="nav.access">
           Acessar o Sistema
         </a>
-        <a href="#downloads" class="rounded-xl bg-[#20c997] px-4 py-2 text-xs sm:text-sm font-bold text-slate-950 shadow-md shadow-emerald-950/40 hover:brightness-110 transition active:scale-95">
+        <a href="#downloads" class="rounded-xl bg-[#20c997] px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold text-slate-950 shadow-md shadow-emerald-950/40 hover:brightness-110 transition active:scale-95" data-i18n="nav.signup">
           Cadastre-se
         </a>
       </div>
@@ -117,14 +167,14 @@
       
       <!-- Título Principal em 2 Linhas -->
       <h1 class="text-3xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl leading-[1.15]">
-        A Plataforma Completa para <br />
-        <span class="text-[#20c997] neon-text-glow">
+        <span data-i18n="hero.title1">A Plataforma Completa para</span> <br />
+        <span class="text-[#20c997] neon-text-glow" data-i18n="hero.title2">
           Fazendas de Impressão 3D
         </span>
       </h1>
 
       <!-- Subtítulo -->
-      <p class="mx-auto mt-6 max-w-2xl text-sm sm:text-base text-slate-400 leading-relaxed font-normal">
+      <p class="mx-auto mt-6 max-w-2xl text-sm sm:text-base text-slate-400 leading-relaxed font-normal" data-i18n="hero.subtitle">
         Monitore, gerencie e otimize sua operação 3D em tempo real, com telemetria avançada, controle de filamentos e automação inteligente.
       </p>
 
@@ -133,6 +183,7 @@
         <a
           href="#downloads"
           class="inline-flex items-center justify-center rounded-full bg-[#20c997] px-8 py-3.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-950/60 hover:brightness-110 transition active:scale-95"
+          data-i18n="hero.ctaPrimary"
         >
           Cadastre-se Grátis
         </a>
@@ -140,7 +191,7 @@
           href="#downloads"
           class="inline-flex items-center justify-center gap-2 rounded-full border border-[#263246] bg-[#0d1629]/80 px-8 py-3.5 text-sm font-semibold text-white shadow-sm hover:border-slate-600 transition"
         >
-          <span>Acessar o Sistema</span>
+          <span data-i18n="hero.ctaSecondary">Acessar o Sistema</span>
           <span>→</span>
         </a>
       </div>
@@ -152,7 +203,7 @@
           class="inline-flex items-center gap-2 rounded-full border border-[#1e293b] bg-[#0c1425]/80 px-5 py-2 text-xs text-slate-300 hover:border-[#20c997]/50 hover:text-white transition shadow-sm"
         >
           <span>💻</span>
-          <span>Aplicativo Desktop para Windows (.exe) e macOS (.dmg)</span>
+          <span data-i18n="hero.desktopBadge">Aplicativo Desktop para Windows (.exe) e macOS (.dmg)</span>
         </a>
       </div>
 
@@ -336,10 +387,10 @@
         <span class="text-white font-semibold">100% Autocontido & Sem Docker</span>
       </div>
 
-      <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white max-w-3xl mx-auto">
+      <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white max-w-3xl mx-auto" data-i18n="downloads.title">
         Download dos Instaladores Oficiais
       </h2>
-      <p class="mt-3 text-sm sm:text-base text-slate-400 max-w-2xl mx-auto">
+      <p class="mt-3 text-sm sm:text-base text-slate-400 max-w-2xl mx-auto" data-i18n="downloads.subtitle">
         Instalação nativa em 1 clique para Windows e macOS com PostgreSQL portátil embutido e inicialização sem telas de comando.
       </p>
 
@@ -365,7 +416,7 @@
                 </div>
                 <div>
                   <div class="text-[11px] font-bold uppercase tracking-wider text-cyan-400">Windows 10 / 11</div>
-                  <h3 class="text-lg font-extrabold text-white">CTRL-Farm-Setup.exe</h3>
+                  <h3 class="text-lg font-extrabold text-white" data-i18n="downloads.winTitle">CTRL-Farm para Windows</h3>
                 </div>
               </div>
               <span id="badge-rec-win" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 uppercase tracking-wide">
@@ -373,7 +424,7 @@
               </span>
             </div>
 
-            <p class="text-xs text-slate-300 mt-3 leading-relaxed">
+            <p class="text-xs text-slate-300 mt-3 leading-relaxed" data-i18n="downloads.winDesc">
               Instalador 1-clique com PostgreSQL portátil embutido (&lt; 40 MB RAM), atalho na Área de Trabalho e inicialização transparente.
             </p>
 
@@ -382,7 +433,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                 </svg>
-                <span>Baixar CTRL-Farm para Windows (.exe)</span>
+                <span data-i18n="downloads.winBtn">Baixar CTRL-Farm para Windows (.exe)</span>
               </a>
               <button onclick="copyInstallerLink('https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm-Setup.exe', 'btnCopyWin')" id="btnCopyWin" title="Copiar link direto" class="w-full sm:w-auto inline-flex items-center justify-center p-3 rounded-xl border border-brand-border bg-brand-surface hover:bg-brand-surfaceHover text-slate-300 hover:text-white transition text-xs font-semibold">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -407,7 +458,7 @@
                 </div>
                 <div>
                   <div class="text-[11px] font-bold uppercase tracking-wider text-brand-neon">macOS 12+</div>
-                  <h3 class="text-lg font-extrabold text-white">CTRL-Farm.dmg</h3>
+                  <h3 class="text-lg font-extrabold text-white" data-i18n="downloads.macTitle">CTRL-Farm para macOS</h3>
                 </div>
               </div>
               <span id="badge-rec-mac" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-neon/20 text-brand-neon border border-brand-neon/40 uppercase tracking-wide">
@@ -415,7 +466,7 @@
               </span>
             </div>
 
-            <p class="text-xs text-slate-300 mt-3 leading-relaxed">
+            <p class="text-xs text-slate-300 mt-3 leading-relaxed" data-i18n="downloads.macDesc">
               Imagem DMG universal compatível com Apple Silicon (M1/M2/M3/M4) e Intel. Arraste para Aplicativos e execute nativamente.
             </p>
 
@@ -424,7 +475,7 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                 </svg>
-                <span>Baixar CTRL-Farm para macOS (.dmg)</span>
+                <span data-i18n="downloads.macBtn">Baixar CTRL-Farm para macOS (.dmg)</span>
               </a>
               <button onclick="copyInstallerLink('https://github.com/saulooliveirati/CTRL-Farm/releases/latest/download/CTRL-Farm.dmg', 'btnCopyMac')" id="btnCopyMac" title="Copiar link direto" class="w-full sm:w-auto inline-flex items-center justify-center p-3 rounded-xl border border-brand-border bg-brand-surface hover:bg-brand-surfaceHover text-slate-300 hover:text-white transition text-xs font-semibold">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -441,7 +492,7 @@
         </div>
 
         <div class="mt-6">
-          <a href="instalacao.html" class="inline-flex items-center gap-2 rounded-2xl border border-brand-border bg-brand-surface px-6 py-3 text-xs font-bold text-white hover:bg-brand-surfaceHover hover:border-brand-neon/60 transition-all active:scale-95">
+          <a href="instalacao.html" class="inline-flex items-center gap-2 rounded-2xl border border-brand-border bg-brand-surface px-6 py-3 text-xs font-bold text-white hover:bg-brand-surfaceHover hover:border-brand-neon/60 transition-all active:scale-95" data-i18n="downloads.manualBtn">
             <span>📖 Ver Manual Passo a Passo de Instalação (Windows & Mac)</span>
             <span>→</span>
           </a>
@@ -791,12 +842,260 @@
     </div>
   </footer>
 
-  <!-- ================= CLIENT SCRIPT (OS DETECTION & COPY) ================= -->
+  <!-- ================= CLIENT SCRIPT (I18N MULTI-LANGUAGE & OS DETECTION) ================= -->
   <script>
+    const I18N_DATA = {
+      "pt-BR": {
+        flag: "🇧🇷",
+        label: "PT-BR",
+        fullName: "Português (Brasil)",
+        strings: {
+          "nav.features": "Recursos",
+          "nav.monitoring": "Monitoramento",
+          "nav.downloads": "Downloads",
+          "nav.access": "Acessar o Sistema",
+          "nav.signup": "Cadastre-se",
+          "hero.title1": "A Plataforma Completa para",
+          "hero.title2": "Fazendas de Impressão 3D",
+          "hero.subtitle": "Monitore, gerencie e otimize sua operação 3D em tempo real, com telemetria avançada, controle de filamentos e automação inteligente.",
+          "hero.ctaPrimary": "Cadastre-se Grátis",
+          "hero.ctaSecondary": "Acessar o Sistema",
+          "hero.desktopBadge": "Aplicativo Desktop para Windows (.exe) e macOS (.dmg)",
+          "downloads.title": "Download dos Instaladores Oficiais",
+          "downloads.subtitle": "Instalação nativa em 1 clique para Windows e macOS com PostgreSQL portátil embutido e inicialização sem telas de comando.",
+          "downloads.winTitle": "CTRL-Farm para Windows",
+          "downloads.winDesc": "Instalador 1-clique com PostgreSQL portátil embutido (< 40 MB RAM), atalho na Área de Trabalho e inicialização transparente.",
+          "downloads.winBtn": "Baixar CTRL-Farm para Windows (.exe)",
+          "downloads.macTitle": "CTRL-Farm para macOS",
+          "downloads.macDesc": "Imagem DMG universal compatível com Apple Silicon (M1/M2/M3/M4) e Intel. Arraste para Aplicativos e execute nativamente.",
+          "downloads.macBtn": "Baixar CTRL-Farm para macOS (.dmg)",
+          "downloads.copyBtn": "Copiar link direto",
+          "downloads.copied": "✓ Copiado!",
+          "downloads.manualBtn": "📖 Ver Manual Passo a Passo de Instalação (Windows & Mac)",
+          "os.win": "🪟 Detectamos que você usa <strong>Windows</strong>. Recomendamos o instalador <strong>CTRL-Farm-Setup.exe</strong>.",
+          "os.mac": "🍎 Detectamos que você usa <strong>macOS</strong>. Recomendamos o pacote <strong>CTRL-Farm.dmg</strong>.",
+          "os.other": "⚡ Selecione abaixo a versão correspondente ao seu sistema operacional:"
+        }
+      },
+      "en": {
+        flag: "🇺🇸",
+        label: "EN",
+        fullName: "English (US)",
+        strings: {
+          "nav.features": "Features",
+          "nav.monitoring": "Monitoring",
+          "nav.downloads": "Downloads",
+          "nav.access": "Access System",
+          "nav.signup": "Sign Up",
+          "hero.title1": "The Complete Platform for",
+          "hero.title2": "3D Printing Farms",
+          "hero.subtitle": "Monitor, manage, and optimize your 3D operation in real-time with advanced telemetry, filament tracking, and intelligent automation.",
+          "hero.ctaPrimary": "Sign Up Free",
+          "hero.ctaSecondary": "Access System",
+          "hero.desktopBadge": "Desktop App for Windows (.exe) and macOS (.dmg)",
+          "downloads.title": "Download Official Installers",
+          "downloads.subtitle": "Native 1-click installation for Windows and macOS with built-in portable PostgreSQL and zero-console startup.",
+          "downloads.winTitle": "CTRL-Farm for Windows",
+          "downloads.winDesc": "1-click installer with embedded lightweight PostgreSQL (< 40 MB RAM), Desktop shortcut, and transparent startup.",
+          "downloads.winBtn": "Download CTRL-Farm for Windows (.exe)",
+          "downloads.macTitle": "CTRL-Farm for macOS",
+          "downloads.macDesc": "Universal DMG image compatible with Apple Silicon (M1/M2/M3/M4) and Intel. Drag to Applications and run natively.",
+          "downloads.macBtn": "Download CTRL-Farm for macOS (.dmg)",
+          "downloads.copyBtn": "Copy direct link",
+          "downloads.copied": "✓ Copied!",
+          "downloads.manualBtn": "📖 View Step-by-Step Installation Manual (Windows & Mac)",
+          "os.win": "🪟 We detected you are using <strong>Windows</strong>. We recommend <strong>CTRL-Farm-Setup.exe</strong>.",
+          "os.mac": "🍎 We detected you are using <strong>macOS</strong>. We recommend <strong>CTRL-Farm.dmg</strong>.",
+          "os.other": "⚡ Select the version for your operating system below:"
+        }
+      },
+      "es": {
+        flag: "🇪🇸",
+        label: "ES",
+        fullName: "Español",
+        strings: {
+          "nav.features": "Recursos",
+          "nav.monitoring": "Monitoreo",
+          "nav.downloads": "Descargas",
+          "nav.access": "Acceder al Sistema",
+          "nav.signup": "Registrarse",
+          "hero.title1": "La Plataforma Completa para",
+          "hero.title2": "Granjas de Impresión 3D",
+          "hero.subtitle": "Monitorea, gestiona y optimiza tu operación 3D en tiempo real con telemetría avanzada, control de filamentos y automatización inteligente.",
+          "hero.ctaPrimary": "Registrarse Gratis",
+          "hero.ctaSecondary": "Acceder al Sistema",
+          "hero.desktopBadge": "Aplicación de Escritorio para Windows (.exe) y macOS (.dmg)",
+          "downloads.title": "Descarga de Instaladores Oficiales",
+          "downloads.subtitle": "Instalación nativa en 1 clic para Windows y macOS con PostgreSQL portátil integrado y arranque sin pantallas de comandos.",
+          "downloads.winTitle": "CTRL-Farm para Windows",
+          "downloads.winDesc": "Instalador 1-clic con PostgreSQL portátil embebido (< 40 MB RAM), acceso directo en Escritorio e inicio transparente.",
+          "downloads.winBtn": "Descargar CTRL-Farm para Windows (.exe)",
+          "downloads.macTitle": "CTRL-Farm para macOS",
+          "downloads.macDesc": "Imagen DMG universal compatible con Apple Silicon (M1/M2/M3/M4) e Intel. Arrastra a Aplicaciones y ejecuta nativamente.",
+          "downloads.macBtn": "Descargar CTRL-Farm para macOS (.dmg)",
+          "downloads.copyBtn": "Copiar enlace directo",
+          "downloads.copied": "✓ ¡Copiado!",
+          "downloads.manualBtn": "📖 Ver Manual Paso a Paso de Instalación (Windows & Mac)",
+          "os.win": "🪟 Detectamos que usas <strong>Windows</strong>. Recomendamos el instalador <strong>CTRL-Farm-Setup.exe</strong>.",
+          "os.mac": "🍎 Detectamos que usas <strong>macOS</strong>. Recomendamos el paquete <strong>CTRL-Farm.dmg</strong>.",
+          "os.other": "⚡ Selecciona a continuación la versión correspondiente a tu sistema operativo:"
+        }
+      },
+      "fr": {
+        flag: "🇫🇷",
+        label: "FR",
+        fullName: "Français",
+        strings: {
+          "nav.features": "Fonctionnalités",
+          "nav.monitoring": "Surveillance",
+          "nav.downloads": "Téléchargements",
+          "nav.access": "Accéder au Système",
+          "nav.signup": "S'inscrire",
+          "hero.title1": "La Plateforme Complète pour",
+          "hero.title2": "Fermes d'Impression 3D",
+          "hero.subtitle": "Surveillez, gérez et optimisez votre atelier 3D en temps réel avec télémétrie avancée, suivi des filaments et automatisation intelligente.",
+          "hero.ctaPrimary": "Inscription Gratuite",
+          "hero.ctaSecondary": "Accéder au Système",
+          "hero.desktopBadge": "Application Desktop pour Windows (.exe) et macOS (.dmg)",
+          "downloads.title": "Télécharger les Installateurs Officiels",
+          "downloads.subtitle": "Installation native en 1 clic pour Windows et macOS avec PostgreSQL portable intégré et démarrage sans invite de commande.",
+          "downloads.winTitle": "CTRL-Farm pour Windows",
+          "downloads.winDesc": "Installateur 1-clic avec PostgreSQL portable embarqué (< 40 Mo RAM), raccourci Bureau et démarrage transparent.",
+          "downloads.winBtn": "Télécharger CTRL-Farm pour Windows (.exe)",
+          "downloads.macTitle": "CTRL-Farm pour macOS",
+          "downloads.macDesc": "Image DMG universelle compatible Apple Silicon (M1/M2/M3/M4) et Intel. Glissez vers Applications et lancez nativement.",
+          "downloads.macBtn": "Télécharger CTRL-Farm pour macOS (.dmg)",
+          "downloads.copyBtn": "Copier le lien direct",
+          "downloads.copied": "✓ Copié !",
+          "downloads.manualBtn": "📖 Voir le Manuel d'Installation (Windows & Mac)",
+          "os.win": "🪟 Nous avons détecté <strong>Windows</strong>. Nous recommandons <strong>CTRL-Farm-Setup.exe</strong>.",
+          "os.mac": "🍎 Nous avons détecté <strong>macOS</strong>. Nous recommandons <strong>CTRL-Farm.dmg</strong>.",
+          "os.other": "⚡ Sélectionnez ci-dessous la version correspondant à votre système :"
+        }
+      },
+      "de": {
+        flag: "🇩🇪",
+        label: "DE",
+        fullName: "Deutsch",
+        strings: {
+          "nav.features": "Funktionen",
+          "nav.monitoring": "Überwachung",
+          "nav.downloads": "Downloads",
+          "nav.access": "Systemzugriff",
+          "nav.signup": "Registrieren",
+          "hero.title1": "Die Komplette Plattform für",
+          "hero.title2": "3D-Druck-Farmen",
+          "hero.subtitle": "Überwachen, verwalten und optimieren Sie Ihren 3D-Betrieb in Echtzeit mit fortschrittlicher Telemetrie, Filamentkontrolle und intelligenter Automatisierung.",
+          "hero.ctaPrimary": "Kostenlos Registrieren",
+          "hero.ctaSecondary": "Systemzugriff",
+          "hero.desktopBadge": "Desktop-Anwendung für Windows (.exe) und macOS (.dmg)",
+          "downloads.title": "Offizielle Installationsprogramme Herunterladen",
+          "downloads.subtitle": "Native 1-Klick-Installation für Windows und macOS mit integriertem portablem PostgreSQL und Start ohne Konsolenfenster.",
+          "downloads.winTitle": "CTRL-Farm für Windows",
+          "downloads.winDesc": "1-Klick-Installer mit integriertem leichtgewichtigem PostgreSQL (< 40 MB RAM), Desktop-Verknüpfung und lautlosem Start.",
+          "downloads.winBtn": "CTRL-Farm für Windows herunterladen (.exe)",
+          "downloads.macTitle": "CTRL-Farm für macOS",
+          "downloads.macDesc": "Universelles DMG-Image kompatibel mit Apple Silicon (M1/M2/M3/M4) und Intel. In Programme ziehen und nativ ausführen.",
+          "downloads.macBtn": "CTRL-Farm für macOS herunterladen (.dmg)",
+          "downloads.copyBtn": "Direktlink kopieren",
+          "downloads.copied": "✓ Kopiert!",
+          "downloads.manualBtn": "📖 Schritt-für-Schritt Installationsanleitung ansehen (Windows & Mac)",
+          "os.win": "🪟 Windows erkannt. Wir empfehlen das Installationsprogramm <strong>CTRL-Farm-Setup.exe</strong>.",
+          "os.mac": "🍎 macOS erkannt. Wir empfehlen das <strong>CTRL-Farm.dmg</strong> Paket.",
+          "os.other": "⚡ Wählen Sie unten die passende Version für Ihr Betriebssystem aus:"
+        }
+      }
+    };
+
+    let currentLocale = "pt-BR";
+
+    function toggleLangDropdown() {
+      const menu = document.getElementById("lang-dropdown-menu");
+      const chevron = document.getElementById("lang-chevron");
+      const isOpen = !menu.classList.contains("hidden");
+      if (isOpen) {
+        menu.classList.add("hidden");
+        chevron.classList.remove("rotate-180", "text-[#20c997]");
+      } else {
+        menu.classList.remove("hidden");
+        chevron.classList.add("rotate-180", "text-[#20c997]");
+      }
+    }
+
+    function selectLanguage(langCode) {
+      if (!I18N_DATA[langCode]) langCode = "pt-BR";
+      currentLocale = langCode;
+      const data = I18N_DATA[langCode];
+
+      // Atualiza botão do seletor
+      document.getElementById("current-lang-flag").textContent = data.flag;
+      document.getElementById("current-lang-label").textContent = data.label;
+      document.documentElement.lang = langCode;
+
+      // Atualiza lista de opções com checkmark
+      document.querySelectorAll(".lang-opt-btn").forEach(btn => {
+        const isSelected = btn.getAttribute("data-lang") === langCode;
+        const check = btn.querySelector(".check-icon");
+        if (isSelected) {
+          btn.classList.add("bg-[#20c997]/15", "text-[#20c997]", "font-semibold");
+          if (check) check.classList.remove("hidden");
+        } else {
+          btn.classList.remove("bg-[#20c997]/15", "text-[#20c997]", "font-semibold");
+          if (check) check.classList.add("hidden");
+        }
+      });
+
+      // Aplica traduções aos elementos data-i18n
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        if (data.strings[key]) {
+          el.innerHTML = data.strings[key];
+        }
+      });
+
+      // Atualiza mensagem do sistema operacional
+      updateOsMessage(langCode);
+
+      // Salva preferência no LocalStorage
+      try {
+        localStorage.setItem("ctrl_farm_locale", langCode);
+      } catch (e) {}
+
+      // Fecha dropdown
+      const menu = document.getElementById("lang-dropdown-menu");
+      const chevron = document.getElementById("lang-chevron");
+      if (menu) menu.classList.add("hidden");
+      if (chevron) chevron.classList.remove("rotate-180", "text-[#20c997]");
+    }
+
+    // Fecha dropdown ao clicar fora
+    document.addEventListener("click", function(e) {
+      const container = document.getElementById("lang-dropdown-container");
+      if (container && !container.contains(e.target)) {
+        const menu = document.getElementById("lang-dropdown-menu");
+        const chevron = document.getElementById("lang-chevron");
+        if (menu) menu.classList.add("hidden");
+        if (chevron) chevron.classList.remove("rotate-180", "text-[#20c997]");
+      }
+    });
+
+    let detectedSystem = "other";
+
+    function updateOsMessage(langCode) {
+      const textElem = document.getElementById("os-detected-text");
+      if (!textElem) return;
+      const strings = (I18N_DATA[langCode] || I18N_DATA["pt-BR"]).strings;
+      if (detectedSystem === "windows") {
+        textElem.innerHTML = strings["os.win"];
+      } else if (detectedSystem === "mac") {
+        textElem.innerHTML = strings["os.mac"];
+      } else {
+        textElem.innerHTML = strings["os.other"];
+      }
+    }
+
     (function detectUserOS() {
       const ua = (navigator.userAgent || navigator.platform || '').toLowerCase();
-      const badge = document.getElementById('os-detected-badge');
-      const textElem = document.getElementById('os-detected-text');
       const cardWin = document.getElementById('card-windows');
       const cardMac = document.getElementById('card-mac');
       const badgeWin = document.getElementById('badge-rec-win');
@@ -806,23 +1105,38 @@
       const isWindows = ua.includes('win');
 
       if (isMac) {
-        textElem.innerHTML = '🍎 Detectamos que você usa <strong>macOS</strong>. Recomendamos o pacote <strong>CTRL-Farm.dmg</strong>.';
-        cardMac.classList.add('ring-2', 'ring-brand-neon', 'shadow-brand-neon/20');
-        badgeMac.classList.remove('hidden');
+        detectedSystem = "mac";
+        if (cardMac) cardMac.classList.add('ring-2', 'ring-brand-neon', 'shadow-brand-neon/20');
+        if (badgeMac) badgeMac.classList.remove('hidden');
       } else if (isWindows) {
-        textElem.innerHTML = '🪟 Detectamos que você usa <strong>Windows</strong>. Recomendamos o instalador <strong>CTRL-Farm-Setup.exe</strong>.';
-        cardWin.classList.add('ring-2', 'ring-cyan-400', 'shadow-cyan-500/20');
-        badgeWin.classList.remove('hidden');
-      } else {
-        textElem.innerHTML = '⚡ Selecione abaixo a versão correspondente ao seu sistema operacional:';
+        detectedSystem = "windows";
+        if (cardWin) cardWin.classList.add('ring-2', 'ring-cyan-400', 'shadow-cyan-500/20');
+        if (badgeWin) badgeWin.classList.remove('hidden');
       }
+
+      // Lê idioma salvo do LocalStorage ou URL ?lang=
+      let initialLang = "pt-BR"; // Padrão Português (Brasil)
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlLang = urlParams.get("lang");
+        const savedLang = localStorage.getItem("ctrl_farm_locale");
+        if (urlLang && I18N_DATA[urlLang]) {
+          initialLang = urlLang;
+        } else if (savedLang && I18N_DATA[savedLang]) {
+          initialLang = savedLang;
+        }
+      } catch (e) {}
+
+      selectLanguage(initialLang);
     })();
 
     function copyInstallerLink(url, buttonId) {
       navigator.clipboard.writeText(url).then(() => {
         const btn = document.getElementById(buttonId);
+        if (!btn) return;
         const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<span class="text-brand-neon font-bold text-[11px]">✓ Copiado!</span>';
+        const strings = (I18N_DATA[currentLocale] || I18N_DATA["pt-BR"]).strings;
+        btn.innerHTML = '<span class="text-brand-neon font-bold text-[11px]">' + strings["downloads.copied"] + '</span>';
         setTimeout(() => {
           btn.innerHTML = originalHtml;
         }, 2200);

@@ -52,6 +52,16 @@ O CTRL-Farm foi concebido para o ambiente fabril, unindo a velocidade e resiliê
 - **Multi-Tenant Estrito:** Isolamento criptográfico e operacional completo dos dados por empresa.
 - **Calculadora de Precificação:** Custos fixos, consumo elétrico, depreciação de máquinas, margens de lucro e taxas de marketplace.
 - **Biblioteca de Arquivos 3D:** Repositório de arquivos STL/3MF/GCODE com controle de versões e pré-visualização.
+- **Suporte Multi-Idioma Nativo (i18n):** Operação completa em Português (Brasil - padrão), Inglês (US), Espanhol, Francês e Alemão.
+
+---
+
+## 🌐 Suporte Multi-Idioma (i18n)
+
+O CTRL-Farm foi preparado para operações globais com suporte internacional nativo:
+- **Seleção no Instalador (Windows):** Ao iniciar o instalador oficial `CTRL-Farm-Setup.exe`, o assistente solicita o idioma de preferência do usuário. O instalador grava automaticamente a escolha e o software já inicializa configurado nesse idioma.
+- **Alternador na Interface Web & Landing Page:** No canto superior direito da Landing Page oficial, página de downloads e painel de controle, há um seletor visual com bandeiras e nomes que atualiza dinamicamente os textos e salva a preferência.
+- **Controle pelo System Tray:** No Windows, clique com o botão direito no ícone do CTRL-Farm (perto do relógio) para acessar o submenu `🌐 Idioma / Language` e alternar instantaneamente entre os idiomas suportados sem precisar reiniciar o aplicativo.
 
 ---
 

@@ -32,10 +32,22 @@ PrivilegesRequired=lowest
 DisableProgramGroupPage=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+ShowLanguageDialog=yes
+UsePreviousLanguage=yes
 
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "french"; MessagesFile: "compiler:Languages\French.isl"
+Name: "german"; MessagesFile: "compiler:Languages\German.isl"
+
+[CustomMessages]
+brazilianportuguese.RunProgram=Executar CTRL-Farm agora
+english.RunProgram=Launch CTRL-Farm now
+spanish.RunProgram=Ejecutar CTRL-Farm ahora
+french.RunProgram=Lancer CTRL-Farm maintenant
+german.RunProgram=CTRL-Farm jetzt starten
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkedonce
@@ -54,8 +66,57 @@ Name: "{group}\Desinstalar {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Executar CTRL-Farm agora"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:RunProgram}"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\WebProfile"
 Type: filesandordirs; Name: "{localappdata}\CTRL-Farm\Logs"
+
+[Code]
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  SelectedLang: String;
+  LocaleCode: String;
+  AppDir: String;
+  ConfigFile: String;
+  ConfigContent: String;
+  EscapedAppDir: String;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    SelectedLang := ActiveLanguage;
+    if (SelectedLang = 'brazilianportuguese') or (SelectedLang = 'portuguese') then
+      LocaleCode := 'pt-BR'
+    else if SelectedLang = 'spanish' then
+      LocaleCode := 'es'
+    else if SelectedLang = 'french' then
+      LocaleCode := 'fr'
+    else if SelectedLang = 'german' then
+      LocaleCode := 'de'
+    else
+      LocaleCode := 'en';
+
+    // 1. Grava no Registro do Windows
+    RegWriteStringValue(HKEY_CURRENT_USER, 'Software\CTRL-Farm', 'Locale', LocaleCode);
+
+    AppDir := ExpandConstant('{app}');
+    EscapedAppDir := AppDir;
+    StringChangeEx(EscapedAppDir, '\', '\\', True);
+
+    ConfigContent := '{' + #13#10 +
+      '  "appRootDir": "' + EscapedAppDir + '",' + #13#10 +
+      '  "locale": "' + LocaleCode + '",' + #13#10 +
+      '  "language": "' + Copy(LocaleCode, 1, 2) + '",' + #13#10 +
+      '  "updatedAt": "' + GetDateTimeString('yyyy-mm-dd hh:nn:ss', '-', ':') + '"' + #13#10 +
+      '}';
+
+    // 2. Grava no diretorio de instalacao
+    ConfigFile := ExpandConstant('{app}\ctrlfarm.config.json');
+    SaveStringToFile(ConfigFile, ConfigContent, False);
+
+    // 3. Grava no diretorio LocalAppData do usuario
+    ForceDirectories(ExpandConstant('{localappdata}\CTRL-Farm'));
+    ConfigFile := ExpandConstant('{localappdata}\CTRL-Farm\ctrlfarm.config.json');
+    SaveStringToFile(ConfigFile, ConfigContent, False);
+  end;
+end;

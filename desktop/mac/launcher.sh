@@ -188,15 +188,26 @@ done
 # ------------------------------------------------------------------------------
 echo "🪟 Abrindo janela de aplicativo nativo do CTRL-Farm..."
 
+# Detecta idioma configurado (padrão pt-BR)
+LOCALE="pt-BR"
+if [ -f "$APP_ROOT/ctrlfarm.config.json" ]; then
+  CONF_LOC=$(grep -o '"locale"[[:space:]]*:[[:space:]]*"[^"]*"' "$APP_ROOT/ctrlfarm.config.json" | cut -d'"' -f4)
+  if [ -n "$CONF_LOC" ]; then
+    LOCALE="$CONF_LOC"
+  fi
+fi
+
+APP_URL="http://localhost:3000?lang=$LOCALE"
+
 if [ -d "/Applications/Google Chrome.app" ]; then
-  open -na "Google Chrome" --args --app="http://localhost:3000" --window-size=1440,900 >/dev/null 2>&1
+  open -na "Google Chrome" --args --app="$APP_URL" --window-size=1440,900 >/dev/null 2>&1
 elif [ -d "/Applications/Microsoft Edge.app" ]; then
-  open -na "Microsoft Edge" --args --app="http://localhost:3000" --window-size=1440,900 >/dev/null 2>&1
+  open -na "Microsoft Edge" --args --app="$APP_URL" --window-size=1440,900 >/dev/null 2>&1
 elif [ -d "/Applications/Brave Browser.app" ]; then
-  open -na "Brave Browser" --args --app="http://localhost:3000" --window-size=1440,900 >/dev/null 2>&1
+  open -na "Brave Browser" --args --app="$APP_URL" --window-size=1440,900 >/dev/null 2>&1
 else
   # Fallback: navegador padrão do Mac
-  open "http://localhost:3000" >/dev/null 2>&1
+  open "$APP_URL" >/dev/null 2>&1
 fi
 
 echo "✅ CTRL-Farm em execução silenciosa com sucesso!"

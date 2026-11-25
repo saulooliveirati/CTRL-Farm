@@ -46,6 +46,8 @@ namespace CtrlFarm.Desktop
         private static string logsDir;
         private static string dataDir;
         private static SplashForm splashForm;
+        private static string currentLocale = "pt-BR";
+        public static string CurrentLocale { get { return currentLocale; } }
 
         [STAThread]
         static void Main()
@@ -111,6 +113,21 @@ namespace CtrlFarm.Desktop
 
             if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
             if (!Directory.Exists(logsDir)) Directory.CreateDirectory(logsDir);
+
+            // 0. Prioridade: Ler idioma configurado (pt-BR, en, es, fr, de)
+            string detectedLocale = ReadConfigLocale(Path.Combine(baseDir, "ctrlfarm.config.json"));
+            if (string.IsNullOrEmpty(detectedLocale))
+            {
+                detectedLocale = ReadConfigLocale(Path.Combine(dataDir, "ctrlfarm.config.json"));
+            }
+            if (string.IsNullOrEmpty(detectedLocale))
+            {
+                detectedLocale = ReadRegistryLocale();
+            }
+            if (!string.IsNullOrEmpty(detectedLocale))
+            {
+                currentLocale = NormalizeLocale(detectedLocale);
+            }
 
             // 1. Prioridade: Ler caminho configurado em ctrlfarm.config.json
             string detectedRoot = ReadConfigAppRootDir(Path.Combine(baseDir, "ctrlfarm.config.json"));
@@ -285,8 +302,9 @@ namespace CtrlFarm.Desktop
         {
             try
             {
-                string json = string.Format("{{\r\n  \"appRootDir\": \"{0}\",\r\n  \"updatedAt\": \"{1:yyyy-MM-dd HH:mm:ss}\"\r\n}}",
-                    root.Replace("\\", "\\\\"), DateTime.Now);
+                string langShort = currentLocale.Split('-')[0];
+                string json = string.Format("{{\r\n  \"appRootDir\": \"{0}\",\r\n  \"locale\": \"{1}\",\r\n  \"language\": \"{2}\",\r\n  \"updatedAt\": \"{3:yyyy-MM-dd HH:mm:ss}\"\r\n}}",
+                    root.Replace("\\", "\\\\"), currentLocale, langShort, DateTime.Now);
                 string dataConfig = Path.Combine(dataDir, "ctrlfarm.config.json");
                 File.WriteAllText(dataConfig, json);
 
@@ -298,10 +316,312 @@ namespace CtrlFarm.Desktop
                     if (key != null)
                     {
                         key.SetValue("AppRootDir", root);
+                        key.SetValue("Locale", currentLocale);
                     }
                 }
             }
             catch { }
+        }
+
+        private static string ReadConfigLocale(string configPath)
+        {
+            try
+            {
+                if (File.Exists(configPath))
+                {
+                    string content = File.ReadAllText(configPath);
+                    int idx = content.IndexOf("\"locale\"", StringComparison.OrdinalIgnoreCase);
+                    if (idx >= 0)
+                    {
+                        int colon = content.IndexOf(':', idx);
+                        if (colon >= 0)
+                        {
+                            int firstQuote = content.IndexOf('"', colon);
+                            if (firstQuote >= 0)
+                            {
+                                int secondQuote = content.IndexOf('"', firstQuote + 1);
+                                if (secondQuote >= 0)
+                                {
+                                    return content.Substring(firstQuote + 1, secondQuote - firstQuote - 1).Trim();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private static string ReadRegistryLocale()
+        {
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\CTRL-Farm"))
+                {
+                    if (key != null)
+                    {
+                        string val = key.GetValue("Locale") as string;
+                        if (!string.IsNullOrEmpty(val)) return val;
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private static string NormalizeLocale(string val)
+        {
+            if (string.IsNullOrEmpty(val)) return "pt-BR";
+            val = val.Trim();
+            if (val.StartsWith("en", StringComparison.OrdinalIgnoreCase)) return "en";
+            if (val.StartsWith("es", StringComparison.OrdinalIgnoreCase)) return "es";
+            if (val.StartsWith("fr", StringComparison.OrdinalIgnoreCase)) return "fr";
+            if (val.StartsWith("de", StringComparison.OrdinalIgnoreCase)) return "de";
+            if (val.StartsWith("pt", StringComparison.OrdinalIgnoreCase)) return "pt-BR";
+            return val;
+        }
+
+        private static void SaveLocale(string newLocale)
+        {
+            try
+            {
+                currentLocale = NormalizeLocale(newLocale);
+                string root = !string.IsNullOrEmpty(appRootDir) ? appRootDir : AppDomain.CurrentDomain.BaseDirectory;
+                string langShort = currentLocale.Split('-')[0];
+                string json = string.Format("{{\r\n  \"appRootDir\": \"{0}\",\r\n  \"locale\": \"{1}\",\r\n  \"language\": \"{2}\",\r\n  \"updatedAt\": \"{3:yyyy-MM-dd HH:mm:ss}\"\r\n}}",
+                    root.Replace("\\", "\\\\"), currentLocale, langShort, DateTime.Now);
+
+                string dataConfig = Path.Combine(dataDir, "ctrlfarm.config.json");
+                File.WriteAllText(dataConfig, json);
+
+                string baseConfig = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ctrlfarm.config.json");
+                try { File.WriteAllText(baseConfig, json); } catch { }
+
+                using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\CTRL-Farm"))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("Locale", currentLocale);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        public static string L(string key)
+        {
+            string lang = currentLocale.ToLowerInvariant();
+            if (lang.StartsWith("en"))
+            {
+                switch (key)
+                {
+                    case "splash_init": return "Initializing local services...";
+                    case "splash_init_db": return "Verifying environment and local database...";
+                    case "splash_db_ready": return "Local database ready...";
+                    case "splash_init_cam": return "Starting MediaMTX (Streaming & RTSP/WebRTC cameras)...";
+                    case "splash_init_api": return "Starting CTRL-Farm NestJS API (Port 3001)...";
+                    case "splash_init_web": return "Starting Next.js Web Interface (Port 3000)...";
+                    case "splash_validating": return "Validating local ports 3001 and 3000...";
+                    case "splash_waiting_web": return "Waiting for Next.js Web Interface to start...";
+                    case "splash_ready": return "CTRL-Farm ready! Opening main window...";
+                    case "card_db": return "Database:";
+                    case "card_db_val": return "Ready";
+                    case "card_cam": return "Camera Streaming:";
+                    case "card_cam_val": return "Active";
+                    case "card_ports": return "Ports:";
+                    case "tray_open": return "🖥️  Open / Restore CTRL-Farm";
+                    case "tray_minimize": return "🗕  Minimize Window";
+                    case "tray_restart": return "🔄  Restart Local Services";
+                    case "tray_external": return "🌐  Open in External Browser";
+                    case "tray_logs": return "📂  Open Logs Folder";
+                    case "tray_status": return "ℹ️  Local Components Status";
+                    case "tray_language": return "🌐  Language / Idioma";
+                    case "tray_exit": return "❌  Exit CTRL-Farm";
+                    case "balloon_active": return "CTRL-Farm is active and operational on port 3000.\nDouble-click to open native window.";
+                    case "balloon_restart": return "Local services restarted successfully!";
+                    case "lang_changed": return "Language changed to English (US).";
+                    case "status_title": return "Current Status of CTRL-Farm Components:";
+                    case "status_db": return "• PostgreSQL Database (5432): {0}";
+                    case "status_api": return "• NestJS API & Licensing (3001): {1}";
+                    case "status_web": return "• Next.js Web Interface (3000): {2}";
+                    case "status_cam": return "• MediaMTX Camera Server (8890): {3}";
+                    case "status_install_dir": return "Installation Folder: {0}";
+                    case "status_logs_dir": return "Logs Folder: {0}";
+                    case "status_connected": return "Connected";
+                    case "status_operational": return "Operational (200 OK)";
+                    case "status_offline": return "Offline";
+                    case "status_active": return "Streaming Active";
+                }
+            }
+            else if (lang.StartsWith("es"))
+            {
+                switch (key)
+                {
+                    case "splash_init": return "Inicializando servicios locales...";
+                    case "splash_init_db": return "Verificando entorno y base de datos local...";
+                    case "splash_db_ready": return "Base de datos local lista...";
+                    case "splash_init_cam": return "Iniciando MediaMTX (Streaming y cámaras RTSP/WebRTC)...";
+                    case "splash_init_api": return "Iniciando API NestJS de CTRL-Farm (Puerto 3001)...";
+                    case "splash_init_web": return "Iniciando Interfaz Web Next.js (Puerto 3000)...";
+                    case "splash_validating": return "Validando disponibilidad de puertos 3001 y 3000...";
+                    case "splash_waiting_web": return "Esperando inicio de interfaz Web Next.js...";
+                    case "splash_ready": return "¡CTRL-Farm listo! Abriendo ventana principal...";
+                    case "card_db": return "Base de Datos:";
+                    case "card_db_val": return "Lista";
+                    case "card_cam": return "Streaming Cámaras:";
+                    case "card_cam_val": return "Activo";
+                    case "card_ports": return "Puertos:";
+                    case "tray_open": return "🖥️  Abrir / Restaurar CTRL-Farm";
+                    case "tray_minimize": return "🗕  Minimizar Ventana";
+                    case "tray_restart": return "🔄  Reiniciar Servicios Locales";
+                    case "tray_external": return "🌐  Abrir en Navegador Externo";
+                    case "tray_logs": return "📂  Abrir Carpeta de Logs";
+                    case "tray_status": return "ℹ️  Estado de Componentes Locales";
+                    case "tray_language": return "🌐  Idioma / Language";
+                    case "tray_exit": return "❌  Salir de CTRL-Farm";
+                    case "balloon_active": return "CTRL-Farm está activo y operativo en el puerto 3000.\nHaz doble clic para abrir la ventana nativa.";
+                    case "balloon_restart": return "¡Servicios locales reiniciados con éxito!";
+                    case "lang_changed": return "Idioma cambiado a Español.";
+                    case "status_title": return "Estado Actual de los Componentes CTRL-Farm:";
+                    case "status_db": return "• Base de Datos PostgreSQL (5432): {0}";
+                    case "status_api": return "• API NestJS & Licenciamiento (3001): {1}";
+                    case "status_web": return "• Interfaz Web Next.js (3000): {2}";
+                    case "status_cam": return "• Servidor de Cámaras MediaMTX (8890): {3}";
+                    case "status_install_dir": return "Carpeta de Instalación: {0}";
+                    case "status_logs_dir": return "Carpeta de Logs: {0}";
+                    case "status_connected": return "Conectado";
+                    case "status_operational": return "Operativo (200 OK)";
+                    case "status_offline": return "Desconectado";
+                    case "status_active": return "Transmisión Activa";
+                }
+            }
+            else if (lang.StartsWith("fr"))
+            {
+                switch (key)
+                {
+                    case "splash_init": return "Initialisation des services locaux...";
+                    case "splash_init_db": return "Vérification de l'environnement et base de données...";
+                    case "splash_db_ready": return "Base de données locale prête...";
+                    case "splash_init_cam": return "Démarrage MediaMTX (Streaming et caméras RTSP/WebRTC)...";
+                    case "splash_init_api": return "Démarrage de l'API NestJS (Port 3001)...";
+                    case "splash_init_web": return "Démarrage de l'interface Web Next.js (Port 3000)...";
+                    case "splash_validating": return "Validation des ports 3001 et 3000...";
+                    case "splash_waiting_web": return "Attente de l'interface Web Next.js...";
+                    case "splash_ready": return "CTRL-Farm prêt ! Ouverture de la fenêtre...";
+                    case "card_db": return "Base de données:";
+                    case "card_db_val": return "Prête";
+                    case "card_cam": return "Streaming Caméras:";
+                    case "card_cam_val": return "Actif";
+                    case "card_ports": return "Ports:";
+                    case "tray_open": return "🖥️  Ouvrir / Restaurer CTRL-Farm";
+                    case "tray_minimize": return "🗕  Réduire la Fenêtre";
+                    case "tray_restart": return "🔄  Redémarrer les Services Locaux";
+                    case "tray_external": return "🌐  Ouvrir dans le Navigateur";
+                    case "tray_logs": return "📂  Ouvrir le Dossier des Logs";
+                    case "tray_status": return "ℹ️  État des Composants Locaux";
+                    case "tray_language": return "🌐  Langue / Language";
+                    case "tray_exit": return "❌  Quitter CTRL-Farm";
+                    case "balloon_active": return "CTRL-Farm est actif sur le port 3000.\nDouble-cliquez pour ouvrir.";
+                    case "balloon_restart": return "Services locaux redémarrés avec succès !";
+                    case "lang_changed": return "Langue modifiée en Français.";
+                    case "status_title": return "État Actuel des Composants CTRL-Farm :";
+                    case "status_db": return "• Base de données PostgreSQL (5432) : {0}";
+                    case "status_api": return "• API NestJS & Licence (3001) : {1}";
+                    case "status_web": return "• Interface Web Next.js (3000) : {2}";
+                    case "status_cam": return "• Serveur de Caméras MediaMTX (8890) : {3}";
+                    case "status_install_dir": return "Dossier d'Installation : {0}";
+                    case "status_logs_dir": return "Dossier de Logs : {0}";
+                    case "status_connected": return "Connecté";
+                    case "status_operational": return "Opérationnel (200 OK)";
+                    case "status_offline": return "Hors ligne";
+                    case "status_active": return "Transmission Active";
+                }
+            }
+            else if (lang.StartsWith("de"))
+            {
+                switch (key)
+                {
+                    case "splash_init": return "Lokale Dienste werden initialisiert...";
+                    case "splash_init_db": return "Umgebung und lokale Datenbank werden geprüft...";
+                    case "splash_db_ready": return "Lokale Datenbank bereit...";
+                    case "splash_init_cam": return "MediaMTX wird gestartet (Streaming und RTSP/WebRTC)...";
+                    case "splash_init_api": return "CTRL-Farm NestJS-API wird gestartet (Port 3001)...";
+                    case "splash_init_web": return "Next.js Web-Interface wird gestartet (Port 3000)...";
+                    case "splash_validating": return "Lokale Ports 3001 und 3000 werden geprüft...";
+                    case "splash_waiting_web": return "Warten auf Next.js Web-Interface...";
+                    case "splash_ready": return "CTRL-Farm bereit! Hauptfenster wird geöffnet...";
+                    case "card_db": return "Datenbank:";
+                    case "card_db_val": return "Bereit";
+                    case "card_cam": return "Kamera-Streaming:";
+                    case "card_cam_val": return "Aktiv";
+                    case "card_ports": return "Ports:";
+                    case "tray_open": return "🖥️  CTRL-Farm Öffnen / Wiederherstellen";
+                    case "tray_minimize": return "🗕  Fenster Minimieren";
+                    case "tray_restart": return "🔄  Lokale Dienste Neu Starten";
+                    case "tray_external": return "🌐  Im Externen Browser Öffnen";
+                    case "tray_logs": return "📂  Log-Ordner Öffnen";
+                    case "tray_status": return "ℹ️  Status Lokaler Komponenten";
+                    case "tray_language": return "🌐  Sprache / Language";
+                    case "tray_exit": return "❌  CTRL-Farm Beenden";
+                    case "balloon_active": return "CTRL-Farm ist aktiv auf Port 3000.\nDoppelklicken zum Öffnen.";
+                    case "balloon_restart": return "Lokale Dienste erfolgreich neu gestartet!";
+                    case "lang_changed": return "Sprache auf Deutsch geändert.";
+                    case "status_title": return "Aktueller Status der CTRL-Farm Komponenten:";
+                    case "status_db": return "• PostgreSQL-Datenbank (5432): {0}";
+                    case "status_api": return "• NestJS API & Lizenzierung (3001): {1}";
+                    case "status_web": return "• Next.js Web-Interface (3000): {2}";
+                    case "status_cam": return "• MediaMTX Kamera-Server (8890): {3}";
+                    case "status_install_dir": return "Installationsordner: {0}";
+                    case "status_logs_dir": return "Log-Ordner: {0}";
+                    case "status_connected": return "Verbunden";
+                    case "status_operational": return "Betriebsbereit (200 OK)";
+                    case "status_offline": return "Offline";
+                    case "status_active": return "Übertragung Aktiv";
+                }
+            }
+
+            // Padrão: Português (Brasil)
+            switch (key)
+            {
+                case "splash_init": return "Inicializando serviços locais...";
+                case "splash_init_db": return "Verificando ambiente e banco de dados local...";
+                case "splash_db_ready": return "Banco de dados local pronto...";
+                case "splash_init_cam": return "Iniciando MediaMTX (Streaming & Câmeras RTSP/WebRTC)...";
+                case "splash_init_api": return "Iniciando API NestJS do CTRL-Farm (Porta 3001)...";
+                case "splash_init_web": return "Iniciando Interface Web Next.js (Porta 3000)...";
+                case "splash_validating": return "Validando disponibilidade das portas locais 3001 e 3000...";
+                case "splash_waiting_web": return "Aguardando interface Web Next.js inicializar...";
+                case "splash_ready": return "CTRL-Farm pronto! Abrindo janela principal...";
+                case "card_db": return "Banco de Dados:";
+                case "card_db_val": return "Pronto";
+                case "card_cam": return "Streaming de Câmeras:";
+                case "card_cam_val": return "Ativo";
+                case "card_ports": return "Portas:";
+                case "tray_open": return "🖥️  Abrir / Restaurar CTRL-Farm";
+                case "tray_minimize": return "🗕  Minimizar Janela";
+                case "tray_restart": return "🔄  Reiniciar Serviços Locais";
+                case "tray_external": return "🌐  Abrir no Navegador Externo";
+                case "tray_logs": return "📂  Abrir Pasta de Logs";
+                case "tray_status": return "ℹ️  Status dos Componentes Locais";
+                case "tray_language": return "🌐  Idioma / Language";
+                case "tray_exit": return "❌  Encerrar CTRL-Farm";
+                case "balloon_active": return "CTRL-Farm está ativo e operacional na porta 3000.\nClique duas vezes para abrir a janela nativa.";
+                case "balloon_restart": return "Serviços locais reiniciados com sucesso!";
+                case "lang_changed": return "Idioma alterado para Português (Brasil).";
+                case "status_title": return "Status Atual dos Componentes CTRL-Farm:";
+                case "status_db": return "• Banco de Dados PostgreSQL (5432): {0}";
+                case "status_api": return "• API NestJS & Licensing (3001): {1}";
+                case "status_web": return "• Interface Web Next.js (3000): {2}";
+                case "status_cam": return "• Servidor de Câmeras MediaMTX (8890): {3}";
+                case "status_install_dir": return "Pasta de Instalação: {0}";
+                case "status_logs_dir": return "Pasta de Logs: {0}";
+                case "status_connected": return "Conectado";
+                case "status_operational": return "Operacional (200 OK)";
+                case "status_offline": return "Offline";
+                case "status_active": return "Transmissão Ativa";
+                default: return key;
+            }
         }
 
         private static string SafeWorkingDirectory(params string[] candidateDirs)
@@ -354,30 +674,30 @@ namespace CtrlFarm.Desktop
 
         private static void StartServicesWorkflow()
         {
-            UpdateSplash("Verificando ambiente e banco de dados local...", 15);
+            UpdateSplash(L("splash_init_db"), 15);
             CheckDatabaseService();
 
-            UpdateSplash("Iniciando MediaMTX (Streaming & Câmeras RTSP/WebRTC)...", 35);
+            UpdateSplash(L("splash_init_cam"), 35);
             StartMediaMtxService();
 
-            UpdateSplash("Iniciando API NestJS do CTRL-Farm (Porta 3001)...", 50);
+            UpdateSplash(L("splash_init_api"), 50);
             StartApiProcess();
 
-            UpdateSplash("Iniciando Interface Web Next.js (Porta 3000)...", 70);
+            UpdateSplash(L("splash_init_web"), 70);
             StartWebProcess();
 
-            UpdateSplash("Validando disponibilidade das portas locais 3001 e 3000...", 90);
+            UpdateSplash(L("splash_validating"), 90);
             WaitForPort(ApiPort, 35000);
             WaitForPort(WebPort, 45000);
 
             if (!IsPortOpen(WebPort, 1500))
             {
                 Log("Aviso: Porta 3000 ainda inicializando. Aguardando até 15s adicionais...");
-                UpdateSplash("Aguardando interface Web Next.js inicializar...", 95);
+                UpdateSplash(L("splash_waiting_web"), 95);
                 WaitForPort(WebPort, 15000);
             }
 
-            UpdateSplash("CTRL-Farm pronto! Abrindo janela principal...", 100);
+            UpdateSplash(L("splash_ready"), 100);
             Thread.Sleep(800);
 
             if (splashForm != null && !splashForm.IsDisposed)
@@ -810,7 +1130,7 @@ namespace CtrlFarm.Desktop
                 return;
             }
 
-            string url = string.Format("http://127.0.0.1:{0}", WebPort);
+            string url = string.Format("http://127.0.0.1:{0}?lang={1}", WebPort, currentLocale);
             string profileDir = Path.Combine(dataDir, "WebProfile");
 
             string browserPath = FindChromiumBrowser();
@@ -878,10 +1198,37 @@ namespace CtrlFarm.Desktop
 
         private static void SetupTrayIcon()
         {
-            trayMenu = new ContextMenuStrip();
-            trayMenu.BackColor = Color.FromArgb(16, 24, 39);
-            trayMenu.ForeColor = Color.FromArgb(248, 250, 252);
-            trayMenu.ShowImageMargin = false;
+            BuildTrayMenu();
+
+            Icon appIcon = LoadAppIcon();
+
+            trayIcon = new NotifyIcon
+            {
+                Icon = appIcon,
+                Text = AppTitle + " (" + L("status_operational") + ")",
+                ContextMenuStrip = trayMenu,
+                Visible = true
+            };
+
+            trayIcon.DoubleClick += (s, e) => LaunchAppWindow();
+
+            trayIcon.ShowBalloonTip(
+                4000,
+                AppTitle,
+                L("balloon_active"),
+                ToolTipIcon.Info);
+        }
+
+        private static void BuildTrayMenu()
+        {
+            if (trayMenu == null)
+            {
+                trayMenu = new ContextMenuStrip();
+                trayMenu.BackColor = Color.FromArgb(16, 24, 39);
+                trayMenu.ForeColor = Color.FromArgb(248, 250, 252);
+                trayMenu.ShowImageMargin = false;
+            }
+            trayMenu.Items.Clear();
 
             var titleItem = new ToolStripMenuItem(string.Format("{0} ({1})", AppTitle, AppVersion))
             {
@@ -892,25 +1239,25 @@ namespace CtrlFarm.Desktop
             trayMenu.Items.Add(titleItem);
             trayMenu.Items.Add(new ToolStripSeparator());
 
-            var openItem = new ToolStripMenuItem("🖥️  Abrir / Restaurar CTRL-Farm", null, (s, e) => LaunchAppWindow())
+            var openItem = new ToolStripMenuItem(L("tray_open"), null, (s, e) => LaunchAppWindow())
             {
                 Font = new Font("Segoe UI", 9f, FontStyle.Bold)
             };
             trayMenu.Items.Add(openItem);
 
-            var minimizeItem = new ToolStripMenuItem("🗕  Minimizar Janela", null, (s, e) => MinimizeAppWindow());
+            var minimizeItem = new ToolStripMenuItem(L("tray_minimize"), null, (s, e) => MinimizeAppWindow());
             trayMenu.Items.Add(minimizeItem);
 
-            var restartItem = new ToolStripMenuItem("🔄  Reiniciar Serviços Locais", null, (s, e) => RestartServices());
+            var restartItem = new ToolStripMenuItem(L("tray_restart"), null, (s, e) => RestartServices());
             trayMenu.Items.Add(restartItem);
 
-            var externalItem = new ToolStripMenuItem("🌐  Abrir no Navegador Externo", null, (s, e) =>
+            var externalItem = new ToolStripMenuItem(L("tray_external"), null, (s, e) =>
             {
-                Process.Start(new ProcessStartInfo(string.Format("http://127.0.0.1:{0}", WebPort)) { UseShellExecute = true });
+                Process.Start(new ProcessStartInfo(string.Format("http://127.0.0.1:{0}?lang={1}", WebPort, currentLocale)) { UseShellExecute = true });
             });
             trayMenu.Items.Add(externalItem);
 
-            var logsItem = new ToolStripMenuItem("📂  Abrir Pasta de Logs", null, (s, e) =>
+            var logsItem = new ToolStripMenuItem(L("tray_logs"), null, (s, e) =>
             {
                 Process.Start(new ProcessStartInfo("explorer.exe", "\"" + logsDir + "\"") { UseShellExecute = true });
             });
@@ -918,34 +1265,42 @@ namespace CtrlFarm.Desktop
 
             trayMenu.Items.Add(new ToolStripSeparator());
 
-            var statusItem = new ToolStripMenuItem("ℹ️  Status dos Componentes Locais", null, (s, e) => ShowStatusDialog());
+            // Submenu de Seleção de Idioma
+            var langMenu = new ToolStripMenuItem(L("tray_language"));
+            langMenu.DropDownItems.Add(CreateLangMenuItem("🇧🇷  Português (Brasil)", "pt-BR"));
+            langMenu.DropDownItems.Add(CreateLangMenuItem("🇺🇸  English (US)", "en"));
+            langMenu.DropDownItems.Add(CreateLangMenuItem("🇪🇸  Español", "es"));
+            langMenu.DropDownItems.Add(CreateLangMenuItem("🇫🇷  Français", "fr"));
+            langMenu.DropDownItems.Add(CreateLangMenuItem("🇩🇪  Deutsch", "de"));
+            trayMenu.Items.Add(langMenu);
+
+            var statusItem = new ToolStripMenuItem(L("tray_status"), null, (s, e) => ShowStatusDialog());
             trayMenu.Items.Add(statusItem);
 
             trayMenu.Items.Add(new ToolStripSeparator());
 
-            var exitItem = new ToolStripMenuItem("❌  Encerrar CTRL-Farm", null, (s, e) => ExitApplication())
+            var exitItem = new ToolStripMenuItem(L("tray_exit"), null, (s, e) => ExitApplication())
             {
                 ForeColor = Color.FromArgb(251, 113, 133)
             };
             trayMenu.Items.Add(exitItem);
+        }
 
-            Icon appIcon = LoadAppIcon();
-
-            trayIcon = new NotifyIcon
+        private static ToolStripMenuItem CreateLangMenuItem(string text, string code)
+        {
+            var item = new ToolStripMenuItem(text, null, (s, e) =>
             {
-                Icon = appIcon,
-                Text = AppTitle + " (Operacional)",
-                ContextMenuStrip = trayMenu,
-                Visible = true
-            };
-
-            trayIcon.DoubleClick += (s, e) => LaunchAppWindow();
-
-            trayIcon.ShowBalloonTip(
-                4000,
-                AppTitle,
-                "CTRL-Farm está ativo e operacional na porta 3000.\nClique duas vezes para abrir a janela nativa.",
-                ToolTipIcon.Info);
+                SaveLocale(code);
+                BuildTrayMenu();
+                if (trayIcon != null)
+                {
+                    trayIcon.Text = AppTitle + " (" + L("status_operational") + ")";
+                    trayIcon.ShowBalloonTip(3000, AppTitle, L("lang_changed"), ToolTipIcon.Info);
+                }
+            });
+            item.Checked = (string.Equals(currentLocale, code, StringComparison.OrdinalIgnoreCase) ||
+                            (code == "pt-BR" && currentLocale.StartsWith("pt", StringComparison.OrdinalIgnoreCase)));
+            return item;
         }
 
         private static Icon LoadAppIcon()
@@ -965,7 +1320,7 @@ namespace CtrlFarm.Desktop
             bool web = IsPortOpen(WebPort, 600);
             bool cam = IsPortOpen(8890, 600) || IsPortOpen(9998, 600);
 
-            string webDetails = web ? "🟢 Operacional (200 OK)" : "🔴 Offline";
+            string webDetails = web ? "🟢 " + L("status_operational") : "🔴 " + L("status_offline");
             if (!web)
             {
                 try
@@ -992,17 +1347,18 @@ namespace CtrlFarm.Desktop
             }
 
             string msg = string.Format(
-                "Status Atual dos Componentes CTRL-Farm:\n\n" +
-                "• Banco de Dados PostgreSQL (5432): {0}\n" +
-                "• API NestJS & Licensing (3001): {1}\n" +
-                "• Interface Web Next.js (3000): {2}\n" +
-                "• Servidor de Câmeras MediaMTX (8890): {3}\n\n" +
-                "Pasta de Instalação: {4}\n" +
-                "Pasta de Logs: {5}",
-                db ? "🟢 Conectado" : "🔴 Não acessível",
-                api ? "🟢 Operacional (200 OK)" : "🔴 Offline",
+                "{0}\n\n" +
+                L("status_db") + "\n" +
+                L("status_api") + "\n" +
+                L("status_web") + "\n" +
+                L("status_cam") + "\n\n" +
+                L("status_install_dir") + "\n" +
+                L("status_logs_dir"),
+                L("status_title"),
+                db ? "🟢 " + L("status_connected") : "🔴 " + L("status_offline"),
+                api ? "🟢 " + L("status_operational") : "🔴 " + L("status_offline"),
                 webDetails,
-                cam ? "🟢 Transmissão Ativa" : "⚪ Em espera",
+                cam ? "🟢 " + L("status_active") : "⚪ " + L("status_offline"),
                 appRootDir,
                 logsDir);
 
@@ -1349,9 +1705,9 @@ namespace CtrlFarm.Desktop
             int spacing = 18;
             int startX = (w - (3 * cardW + 2 * spacing)) / 2;
 
-            DrawStatusCard(g, startX, cardY, cardW, cardH, "🗄️", "Banco de Dados:", "Pronto", Color.FromArgb(32, 201, 151));
-            DrawStatusCard(g, startX + cardW + spacing, cardY, cardW, cardH, "📹", "Streaming de Câmeras:", "Ativo", Color.FromArgb(32, 201, 151));
-            DrawStatusCard(g, startX + 2 * (cardW + spacing), cardY, cardW, cardH, "🔗", "Portas:", "3000 / 3001", Color.FromArgb(56, 189, 248));
+            DrawStatusCard(g, startX, cardY, cardW, cardH, "🗄️", Program.L("card_db"), Program.L("card_db_val"), Color.FromArgb(32, 201, 151));
+            DrawStatusCard(g, startX + cardW + spacing, cardY, cardW, cardH, "📹", Program.L("card_cam"), Program.L("card_cam_val"), Color.FromArgb(32, 201, 151));
+            DrawStatusCard(g, startX + 2 * (cardW + spacing), cardY, cardW, cardH, "🔗", Program.L("card_ports"), "3000 / 3001", Color.FromArgb(56, 189, 248));
         }
 
         private void DrawStatusCard(Graphics g, int x, int y, int w, int h, string icon, string label, string val, Color valColor)
