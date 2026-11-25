@@ -63,6 +63,8 @@ namespace CtrlFarm.Installer
         private CheckBox chkStartMenuShortcut;
         private CheckBox chkRegisterUninstall;
         private CheckBox chkLaunchAfter;
+        private ComboBox cmbLanguage;
+        private string selectedLocale = "pt-BR";
 
         // Step 3: Progress
         private ProgressBar progressBar;
@@ -313,17 +315,64 @@ namespace CtrlFarm.Installer
                        "gerencial, serviços locais, câmeras e conectividade com a nuvem.",
                 ForeColor = textMain,
                 Font = new Font("Segoe UI", 10f, FontStyle.Regular),
-                Location = new Point(0, 8),
-                Size = new Size(600, 90)
+                Location = new Point(0, 4),
+                Size = new Size(600, 72)
             };
+
+            Panel pnlLang = new Panel
+            {
+                Location = new Point(0, 78),
+                Size = new Size(600, 38),
+                BackColor = cardDark
+            };
+
+            Label lblLang = new Label
+            {
+                Text = "🌐 Idioma / Language:",
+                ForeColor = neonEmerald,
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+                Location = new Point(12, 9),
+                Size = new Size(180, 22)
+            };
+
+            cmbLanguage = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                BackColor = Color.FromArgb(10, 15, 27),
+                ForeColor = textMain,
+                Font = new Font("Segoe UI", 9.5f, FontStyle.Regular),
+                Location = new Point(200, 6),
+                Size = new Size(350, 26)
+            };
+            cmbLanguage.Items.Add("🇧🇷  Português (Brasil) - Padrão");
+            cmbLanguage.Items.Add("🇺🇸  English (US)");
+            cmbLanguage.Items.Add("🇪🇸  Español");
+            cmbLanguage.Items.Add("🇫🇷  Français");
+            cmbLanguage.Items.Add("🇩🇪  Deutsch");
+            cmbLanguage.SelectedIndex = 0;
+
+            cmbLanguage.SelectedIndexChanged += (s, e) =>
+            {
+                switch (cmbLanguage.SelectedIndex)
+                {
+                    case 1: selectedLocale = "en"; break;
+                    case 2: selectedLocale = "es"; break;
+                    case 3: selectedLocale = "fr"; break;
+                    case 4: selectedLocale = "de"; break;
+                    default: selectedLocale = "pt-BR"; break;
+                }
+            };
+
+            pnlLang.Controls.Add(lblLang);
+            pnlLang.Controls.Add(cmbLanguage);
 
             GroupBox grpPrereq = new GroupBox
             {
                 Text = " Verificação de Pré-requisitos do Sistema ",
                 ForeColor = neonEmerald,
                 Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
-                Location = new Point(0, 108),
-                Size = new Size(600, 180),
+                Location = new Point(0, 122),
+                Size = new Size(600, 172),
                 BackColor = cardDark
             };
 
@@ -369,6 +418,7 @@ namespace CtrlFarm.Installer
             grpPrereq.Controls.Add(lblPrereqNote);
 
             panelStepWelcome.Controls.Add(lblIntro);
+            panelStepWelcome.Controls.Add(pnlLang);
             panelStepWelcome.Controls.Add(grpPrereq);
             contentPanel.Controls.Add(panelStepWelcome);
         }
@@ -818,16 +868,30 @@ namespace CtrlFarm.Installer
                         }
                     }
 
-                    // 6.5. Gravar ctrlfarm.config.json para persistencia da raiz dos servicos
+                    // 6.5. Gravar ctrlfarm.config.json para persistencia da raiz dos servicos e idioma
                     string finalAppRoot = IsValidProjectDir(resolvedSourceDir) ? resolvedSourceDir : targetDir;
-                    string configJson = string.Format("{{\r\n  \"appRootDir\": \"{0}\",\r\n  \"installedAt\": \"{1:yyyy-MM-dd HH:mm:ss}\",\r\n  \"version\": \"{2}\"\r\n}}",
-                        finalAppRoot.Replace("\\", "\\\\"), DateTime.Now, AppVersion);
+                    string langShort = selectedLocale.Split('-')[0];
+                    string configJson = string.Format("{{\r\n  \"appRootDir\": \"{0}\",\r\n  \"locale\": \"{1}\",\r\n  \"language\": \"{2}\",\r\n  \"installedAt\": \"{3:yyyy-MM-dd HH:mm:ss}\",\r\n  \"version\": \"{4}\"\r\n}}",
+                        finalAppRoot.Replace("\\", "\\\\"), selectedLocale, langShort, DateTime.Now, AppVersion);
 
                     try { File.WriteAllText(Path.Combine(targetDir, "ctrlfarm.config.json"), configJson); } catch { }
 
                     string localAppData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CTRL-Farm");
                     if (!Directory.Exists(localAppData)) Directory.CreateDirectory(localAppData);
                     try { File.WriteAllText(Path.Combine(localAppData, "ctrlfarm.config.json"), configJson); } catch { }
+
+                    try
+                    {
+                        using (RegistryKey key = Registry.CurrentUser.CreateSubKey(@"Software\CTRL-Farm"))
+                        {
+                            if (key != null)
+                            {
+                                key.SetValue("AppRootDir", finalAppRoot);
+                                key.SetValue("Locale", selectedLocale);
+                            }
+                        }
+                    }
+                    catch { }
 
                     Thread.Sleep(300);
                     UpdateProgress(40, "Criando scripts de controle e desinstalação...", "Gerando scripts auxiliares...");

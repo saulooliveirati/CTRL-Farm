@@ -211,13 +211,20 @@ namespace CtrlFarm.Desktop
             // Se detectou uma raiz valida, salva a associacao para acelerar proximas execucoes
             if (!string.IsNullOrEmpty(detectedRoot) && IsValidAppRoot(detectedRoot))
             {
-                appRootDir = Path.GetFullPath(detectedRoot);
+                appRootDir = Path.GetFullPath(detectedRoot.Trim());
                 SaveConfigAppRootDir(appRootDir);
             }
             else
             {
                 appRootDir = baseDir;
             }
+
+            try
+            {
+                string safeDir = Directory.Exists(appRootDir) ? appRootDir : (Directory.Exists(baseDir) ? baseDir : Path.GetTempPath());
+                Environment.CurrentDirectory = safeDir;
+            }
+            catch { }
         }
 
         private static bool IsValidAppRoot(string candidate)
@@ -769,6 +776,7 @@ namespace CtrlFarm.Desktop
                             Directory.CreateDirectory(portablePgDataDir);
                             ProcessStartInfo initPsi = new ProcessStartInfo(initDbExe, string.Format("-D \"{0}\" -U postgres -E UTF8 --no-locale -A trust", portablePgDataDir))
                             {
+                                WorkingDirectory = SafeWorkingDirectory(Path.GetDirectoryName(foundPgCtl), dataDir, appRootDir, AppDomain.CurrentDomain.BaseDirectory),
                                 CreateNoWindow = true,
                                 UseShellExecute = false,
                                 WindowStyle = ProcessWindowStyle.Hidden
@@ -1145,6 +1153,7 @@ namespace CtrlFarm.Desktop
                 {
                     ProcessStartInfo psi = new ProcessStartInfo(browserPath, args)
                     {
+                        WorkingDirectory = SafeWorkingDirectory(dataDir, appRootDir, AppDomain.CurrentDomain.BaseDirectory),
                         UseShellExecute = false,
                         CreateNoWindow = false,
                         WindowStyle = ProcessWindowStyle.Normal
@@ -1405,6 +1414,7 @@ namespace CtrlFarm.Desktop
                 {
                     ProcessStartInfo stopPsi = new ProcessStartInfo(portablePgCtlExe, string.Format("stop -D \"{0}\" -m fast", portablePgDataDir))
                     {
+                        WorkingDirectory = SafeWorkingDirectory(Path.GetDirectoryName(portablePgCtlExe), dataDir, appRootDir, AppDomain.CurrentDomain.BaseDirectory),
                         CreateNoWindow = true,
                         UseShellExecute = false,
                         WindowStyle = ProcessWindowStyle.Hidden
@@ -1436,6 +1446,7 @@ namespace CtrlFarm.Desktop
                     {
                         FileName = "taskkill",
                         Arguments = string.Format("/PID {0} /T /F", p.Id),
+                        WorkingDirectory = SafeWorkingDirectory(appRootDir, AppDomain.CurrentDomain.BaseDirectory, Path.GetTempPath()),
                         CreateNoWindow = true,
                         UseShellExecute = false,
                         WindowStyle = ProcessWindowStyle.Hidden
